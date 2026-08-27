@@ -5,7 +5,8 @@ import argparse
 from seleniumbase import Driver
 from selenium.webdriver.support.ui import WebDriverWait
 
-from base.scraper import Scraper
+from base.scraper import UrlScraper
+from interfaces.iconfig import ICrawlerConfig
 from logger import get_logger
 
 import json
@@ -13,18 +14,31 @@ import json
 logger = get_logger(__name__)
 
 
-class SeleniumBaseScraper(Scraper):
+class SeleniumBaseScraper(UrlScraper):
     def __init__(self, *, headless: bool = False, page_load_timeout: int = 30) -> None:
         self.headless = headless
         self.page_load_timeout = page_load_timeout
 
-    def scrape(self, url: str) -> str:
+    def _build_driver_options(self, config: ICrawlerConfig):
+        driver_options: dict[str, object] = {
+            "uc": config.uc,
+            "headless": self.headless or config.headless,
+        }
+        if config is not None and config.proxy:
+            driver_options["proxy"] = config.proxy
+        return driver_options
+
+    def scrape(self, url: str, config: ICrawlerConfig | None = None) -> str:
         logger.info("Starting crawl: %s", url)
-        driver = Driver(uc=True, headless=self.headless)
+        request_timeout = (
+            config.request_timeout if config is not None else self.page_load_timeout
+        )
+
+        driver = Driver(**self._build_driver_options(config))
         try:
-            driver.set_page_load_timeout(self.page_load_timeout)
+            driver.set_page_load_timeout(request_timeout)
             driver.get(url)
-            WebDriverWait(driver, self.page_load_timeout).until(
+            WebDriverWait(driver, request_timeout).until(
                 lambda current_driver: current_driver.execute_script(
                     "return document.readyState"
                 )
