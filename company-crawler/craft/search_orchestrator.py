@@ -13,7 +13,7 @@ from interfaces.iconfig import ICrawlerConfig, IQuery
 logger = get_logger("Craft Search Orchestrator")
 
 
-class SearchOrchestrator:
+class CraftCompanySearchingService:
     def __init__(self, searcher: CompanySearcher):
         self.searcher = searcher
 
