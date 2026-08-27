@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from scraper import CompanyNameScraper
+from base.scraper import CompanyNameScraper
 from interfaces.iconfig import ICrawlerConfig
 
 

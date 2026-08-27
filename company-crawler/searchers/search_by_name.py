@@ -1,7 +1,7 @@
-from base.searcher import Searcher
+from base.searcher import CompanySearcher
 
 
-class CompanySearchByname(Searcher):
+class CompanySearchByname(CompanySearcher):
 
     def search_by_name(self, name, config):
         return self.searcher.scrape(name, config)

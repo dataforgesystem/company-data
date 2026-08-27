@@ -1,4 +1,4 @@
-import requests
+from curl_cffi import requests
 from base.scraper import CompanyNameScraper
 from logger import get_logger
 from utils.scraping_utils import ScrapingUtils
