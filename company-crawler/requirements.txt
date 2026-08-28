@@ -7,4 +7,4 @@ requests
 typing-inspection
 typing_extensions
 urllib3
-selenium_base
+seleniumbase

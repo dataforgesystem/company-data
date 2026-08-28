@@ -1,5 +1,6 @@
 import json
-
+import random 
+import time
 
 class ScrapingUtils:
 
@@ -37,3 +38,15 @@ class ScrapingUtils:
                 "query": "query UniversalSearch($query: String\u0021) { universalSearch(query: $query) { ...UniversalSearchResult __typename }}fragment UniversalSearchResult on SearchSuggestion { company { ...CompanyWithLogo __typename } name type url __typename}fragment CompanyWithLogo on Company { id slug displayName logo { id url __typename } __typename}",
             }
         )
+
+    @staticmethod
+    def build_craft_page_url(query: str = "google"):
+        return f"https://craft.co/{query}"
+
+    @staticmethod
+    def enter_keys_to_element(element, query: str):
+        element.click()
+        element.clear()
+        for char in query:
+            element.send_keys(char)
+            time.sleep(random.uniform(0.06, 0.18))

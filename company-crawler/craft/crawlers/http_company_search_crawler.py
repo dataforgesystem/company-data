@@ -27,6 +27,7 @@ class CompanySearchCrawler(CompanyNameScraper):
                 proxies=self.build_proxies(
                     config.proxy if config is not None else None
                 ),
+                timeout=config.request_timeout
             )
             response.raise_for_status()
             return response.text
