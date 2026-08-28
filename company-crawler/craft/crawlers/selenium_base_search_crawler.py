@@ -72,7 +72,7 @@ class SeleniumbaseSearchCrawler(CompanyNameScraper):
         response_body = WebDriverWait(driver, timeout).until(find_response_body)
         return str(response_body)
 
-    def scrape(self, query, config):
+    def scrape(self, query, config) -> str:
         url = ScrapingUtils.build_craft_page_url()
         logger.info("Starting crawl: %s", url)
         request_timeout = (
@@ -94,7 +94,10 @@ class SeleniumbaseSearchCrawler(CompanyNameScraper):
             ScrapingUtils.enter_keys_to_element(search_box, query)
             response_body = self._graphql_response_body(driver, request_timeout)
             logger.info("Captured Craft GraphQL response for query: %s", query)
-            return response_body
+            data = json.loads(response_body)
+            if not isinstance(data, list) or not data:
+                return json.dumps({"data": {"universalSearch": []}})
+            return json.dumps(data[0])
         except Exception as ex:
             logger.exception(
                 f"Error while scraping company name using seleniumbase: {ex}"

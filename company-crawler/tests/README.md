@@ -1,1 +1,1 @@
-.venv/bin/python -m unittest tests.test_searcher -v
+.venv/bin/python -m unittest tests.craft_searcher_test -v

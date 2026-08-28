@@ -12,7 +12,17 @@ class CraftSearchParser(SearchResponseParser):
     def parse(self, data) -> List[ISearchResponse]:
         try:
             dict_data = json.loads(data)
-            company_data = dict_data.get("data", {}).get("universalSearch", [])
+            if not isinstance(dict_data, dict):
+                raise ValueError("Search response must be a JSON object")
+
+            errors = dict_data.get("errors")
+            if errors:
+                raise ValueError(f"Craft GraphQL returned errors: {errors}")
+
+            company_data = dict_data.get("data", {}).get("universalSearch") or []
+            if not isinstance(company_data, list):
+                raise ValueError("Search response has an invalid universalSearch value")
+
             search_responses: List[ISearchResponse] = []
             for search_data in company_data:
                 company_search_data = search_data.get("company", {})
@@ -31,3 +41,4 @@ class CraftSearchParser(SearchResponseParser):
 
         except Exception as ex:
             logger.exception(f"Error while parsing search response: {ex}")
+            raise

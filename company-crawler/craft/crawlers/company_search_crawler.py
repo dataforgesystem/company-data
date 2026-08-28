@@ -24,9 +24,12 @@ class CompanySearchCrawler(CompanyNameScraper):
                 headers=headers,
                 data=payload,
                 impersonate="chrome",
-                proxies=self.build_proxies(config.proxy),
+                proxies=self.build_proxies(
+                    config.proxy if config is not None else None
+                ),
             )
             response.raise_for_status()
             return response.text
         except Exception as ex:
             logger.exception(f"Error while trying to fetch company by name: {ex}")
+            raise
