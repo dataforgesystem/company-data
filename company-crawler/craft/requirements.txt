@@ -1,0 +1,10 @@
+curl_cffi
+idna
+pycparser
+pydantic
+pydantic_core
+requests
+typing-inspection
+typing_extensions
+urllib3
+selenium_base

@@ -1,0 +1,1 @@
+.venv/bin/python -m unittest craft.tests.test_searcher -v
