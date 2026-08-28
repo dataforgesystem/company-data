@@ -9,6 +9,8 @@ sys.path.insert(0, str(common_root))
 from logger import get_logger
 from base.searcher import CompanySearcher
 from interfaces.iconfig import ICrawlerConfig, IQuery
+from interfaces.search_response import ISearchResponse
+from typing import List
 
 logger = get_logger("Craft Search Orchestrator")
 
@@ -19,19 +21,23 @@ class CraftCompanySearchingService:
 
     def search_company(
         self, query: IQuery, config: ICrawlerConfig | None = None
-    ) -> list[str]:
+    ) -> List[ISearchResponse]:
         crawler_config = config or ICrawlerConfig()
         results: list[str] = []
 
         try:
             if query.company_name:
-                results.extend(
-                    self.searcher.search_by_name(query.company_name, crawler_config)
+                result = self.searcher.search_by_name(
+                    query.company_name, crawler_config
                 )
+                if result:
+                    results.extend(result)
             if query.stock_ticket:
-                results.extend(
-                    self.searcher.search_by_symbol(query.stock_ticket, crawler_config)
+                result = self.searcher.search_by_symbol(
+                    query.stock_ticket, crawler_config
                 )
+                if result:
+                    results.extend(result)
             return results
         except Exception:
             logger.exception("Error while searching for company: %s", query)
