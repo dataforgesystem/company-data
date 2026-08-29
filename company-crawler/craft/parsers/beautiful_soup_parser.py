@@ -10,7 +10,8 @@ class CraftParser(Parser):
         # from the HTML or JSON data provided by Craft.
         # Return a CompanyData object containing the parsed company data.
         json_data = json.loads(data)
-        raise NotImplementedError("Not implemented yet")
+        print(json_data)
+        return json_data  #! TESTING
 
 
 if __name__ == "__main__":

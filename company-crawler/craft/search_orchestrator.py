@@ -7,6 +7,11 @@ sys.path.insert(0, str(crawler_root))
 sys.path.insert(0, str(common_root))
 
 from logger import get_logger
+from craft.crawlers.company_name_scraper_chain import CompanyNameScraperChain
+from craft.crawlers.http_company_search_crawler import CompanySearchCrawler
+from craft.crawlers.selenium_base_search_crawler import SeleniumbaseSearchCrawler
+from craft.parsers.search_result_parser import CraftSearchParser
+from searchers.search_by_name import CompanySearchByName
 from base.searcher import CompanySearcher
 from interfaces.iconfig import ICrawlerConfig, IQuery
 from interfaces.search_response import ISearchResponse
@@ -16,8 +21,13 @@ logger = get_logger("Craft Search Orchestrator")
 
 
 class CraftCompanySearchingService:
-    def __init__(self, searcher: CompanySearcher):
-        self.searcher = searcher
+    def __init__(self, searcher: CompanySearcher | None = None):
+        self.searcher = searcher or CompanySearchByName(
+            CompanyNameScraperChain(
+                (CompanySearchCrawler(), SeleniumbaseSearchCrawler())
+            ),
+            CraftSearchParser(),
+        )
 
     def search_company(
         self, query: IQuery, config: ICrawlerConfig | None = None
