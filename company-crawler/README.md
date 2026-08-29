@@ -355,10 +355,6 @@ logger.info("Starting company search...")
 - ✅ Dual-mode crawlers (HTTP with Selenium fallback)
 - ✅ BeautifulSoup HTML parsing
 
-### Future Sources
-- LinkedIn
-- Crunchbase
-- Others (to be added)
 
 ## Error Handling
 
@@ -390,9 +386,6 @@ To add a new data source:
 
 See `requirements.txt` for a complete list of dependencies.
 
-## License
-
-[Add your license information here]
 
 ## Support
 
