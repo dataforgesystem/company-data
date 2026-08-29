@@ -3,7 +3,7 @@ import unittest
 from craft.scraping_orchestrator import CraftCompanyPageScrapingService
 from craft.crawlers.selenium_base_url_crawler import SeleniumBaseUrlScraper
 from craft.crawlers.http_url_crawler import HTTPUrlScraper
-from craft.parsers.beautiful_soup_parser import CraftParser
+from craft.parsers.company_page_parser import CraftParser
 
 
 class CraftUrlScraper(unittest.TestCase):

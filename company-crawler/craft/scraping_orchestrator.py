@@ -6,7 +6,7 @@ common_root = crawler_root.parent / "company-common"
 sys.path.insert(0, str(crawler_root))
 sys.path.insert(0, str(common_root))
 
-from craft.parsers.beautiful_soup_parser import CraftParser
+from craft.parsers.company_page_parser import CraftParser
 from craft.crawlers.http_url_crawler import HTTPUrlScraper
 from craft.crawlers.selenium_base_url_crawler import SeleniumBaseUrlScraper
 from craft.crawlers.url_scraper_chain import UrlScraperChain

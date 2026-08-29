@@ -20,7 +20,7 @@ Example:
 
 from craft.scraping_orchestrator import CraftCompanyPageScrapingService
 from craft.search_orchestrator import CraftCompanySearchingService
-from craft.parsers.beautiful_soup_parser import CraftParser
+from craft.parsers.company_page_parser import CraftParser
 
 __all__ = [
     "CraftCompanySearchingService",

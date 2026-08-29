@@ -104,7 +104,7 @@ def get_scraping_service(source: str = "craft", **kwargs):
         )
 
     if "page_parser" not in kwargs:
-        from craft.parsers.beautiful_soup_parser import CraftParser
+        from craft.parsers.company_page_parser import CraftParser
         kwargs["page_parser"] = CraftParser()
 
     service_class = AVAILABLE_SOURCES[source]["scraping_service"]
