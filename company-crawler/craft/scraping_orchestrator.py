@@ -6,8 +6,10 @@ common_root = crawler_root.parent / "company-common"
 sys.path.insert(0, str(crawler_root))
 sys.path.insert(0, str(common_root))
 
-from parsers.beautiful_soup_parser import CraftParser
-from crawlers.selenium_base_crawler import SeleniumBaseScraper
+from craft.parsers.company_page_parser import CraftParser
+from craft.crawlers.http_url_crawler import HTTPUrlScraper
+from craft.crawlers.selenium_base_url_crawler import SeleniumBaseUrlScraper
+from craft.crawlers.url_scraper_chain import UrlScraperChain
 from base.scraper import UrlScraper
 from base.parser import Parser
 from interfaces.iconfig import ICrawlerConfig
@@ -17,8 +19,14 @@ logger = get_logger("Craft Scraping Orchestrator")
 
 
 class CraftCompanyPageScrapingService:
-    def __init__(self, url_scraper: UrlScraper, page_parser: Parser):
-        self.url_scraper = url_scraper
+    def __init__(
+        self,
+        url_scraper: UrlScraper | None,
+        page_parser: Parser,
+    ):
+        self.url_scraper = url_scraper or UrlScraperChain(
+            (HTTPUrlScraper(), SeleniumBaseUrlScraper())
+        )
         self.page_parser = page_parser
 
     def fetch_page(self, url: str, config: ICrawlerConfig) -> str:
@@ -39,6 +47,7 @@ class CraftCompanyPageScrapingService:
         crawler_config = config if config is not None else ICrawlerConfig()
         try:
             page_data = self.fetch_page(url, crawler_config)
+            print(page_data)
             return self.parse_page(page_data)
         except Exception:
             logger.exception("Error while processing page: %s", url)
@@ -47,8 +56,7 @@ class CraftCompanyPageScrapingService:
 
 if __name__ == "__main__":
     parser = CraftParser()
-    scraper = SeleniumBaseScraper()
-    scraping_service = CraftCompanyPageScrapingService(scraper, parser)
+    scraping_service = CraftCompanyPageScrapingService(None, parser)
     data = scraping_service.scrape_company_page(
         "https://craft.co/amazon", ICrawlerConfig()
     )

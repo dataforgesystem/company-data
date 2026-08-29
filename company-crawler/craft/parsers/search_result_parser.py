@@ -2,7 +2,7 @@ from base.search_parser import SearchResponseParser
 from interfaces.search_response import ISearchResponse
 from typing import List
 from logger import get_logger
-from craft.utils.uri_utils import UriUtils
+from global_utils.uri_utils import UriUtils
 import json
 
 logger = get_logger(__name__)
