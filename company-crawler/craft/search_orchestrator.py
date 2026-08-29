@@ -11,7 +11,7 @@ from craft.crawlers.company_name_scraper_chain import CompanyNameScraperChain
 from craft.crawlers.http_company_search_crawler import CompanySearchCrawler
 from craft.crawlers.selenium_base_search_crawler import SeleniumbaseSearchCrawler
 from craft.parsers.search_result_parser import CraftSearchParser
-from searchers.search_by_name import CompanySearchByName
+from craft.searchers.search_by_name import CompanySearchByName
 from base.searcher import CompanySearcher
 from interfaces.iconfig import ICrawlerConfig, IQuery
 from interfaces.search_response import ISearchResponse

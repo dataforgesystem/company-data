@@ -25,7 +25,7 @@ class CraftUrlScraper(unittest.TestCase):
         config = None
         url = "https://craft.co/google"
         expected_result = {}
-        response = self.company_page_scraper.scrape_company_page(url, config)
+        response = self._sb_company_page_scraper.scrape_company_page(url, config)
         self.assertNotEqual(response, None)
 
     def test_http_page_scraping(self):

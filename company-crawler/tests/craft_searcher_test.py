@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from craft.search_orchestrator import CraftCompanySearchingService
 from craft.crawlers.http_company_search_crawler import CompanySearchCrawler
 from craft.crawlers.selenium_base_search_crawler import SeleniumbaseSearchCrawler
-from searchers.search_by_name import CompanySearchByName
+from craft.searchers.search_by_name import CompanySearchByName
 from craft.parsers.search_result_parser import CraftSearchParser
 from interfaces.iconfig import IQuery
 from interfaces.search_response import ISearchResponse
