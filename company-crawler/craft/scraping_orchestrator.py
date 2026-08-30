@@ -14,6 +14,7 @@ from base.scraper import UrlScraper
 from base.parser import Parser
 from interfaces.iconfig import ICrawlerConfig
 from logger import get_logger
+from typing import Optional
 
 logger = get_logger("Craft Scraping Orchestrator")
 
@@ -21,7 +22,7 @@ logger = get_logger("Craft Scraping Orchestrator")
 class CraftCompanyPageScrapingService:
     def __init__(
         self,
-        url_scraper: UrlScraper | None,
+        url_scraper: Optional[UrlScraper],
         page_parser: Parser,
     ):
         self.url_scraper = url_scraper or UrlScraperChain(
@@ -43,7 +44,7 @@ class CraftCompanyPageScrapingService:
             logger.exception("Error while parsing page")
             raise
 
-    def scrape_company_page(self, url: str, config: ICrawlerConfig | None = None):
+    def scrape_company_page(self, url: str, config: Optional[ICrawlerConfig] = None):
         crawler_config = config if config is not None else ICrawlerConfig()
         try:
             page_data = self.fetch_page(url, crawler_config)
