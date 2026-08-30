@@ -10,6 +10,10 @@ From a service directory, install the shared package in editable mode:
 python -m pip install -e ../company-common
 ```
 
+reinstall
+python -m pip install --force-reinstall -e ../company-common
+
+
 Then import the models without copying their definitions:
 
 ```python
