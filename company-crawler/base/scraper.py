@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from interfaces.iconfig import ICrawlerConfig
-from typing import Dict
+from typing import Dict, Optional
 
 
 class UrlScraper(ABC):
     @abstractmethod
-    def build_proxies(self, proxy: str) -> Dict | str:
+    def build_proxies(self, proxy: str) -> Optional[Dict]:
         pass
 
     @abstractmethod
@@ -15,5 +15,5 @@ class UrlScraper(ABC):
 
 class CompanyNameScraper(ABC):
     @abstractmethod
-    def scrape(self, query: str, config: ICrawlerConfig):
+    def scrape(self, query: str, config: ICrawlerConfig) -> str:
         pass

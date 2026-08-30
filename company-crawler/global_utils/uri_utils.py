@@ -15,4 +15,4 @@ class UriUtils:
         if not url:
             return ""
         ext = tldextract.extract(url)
-        return ext.domain
+        return ext.top_domain_under_public_suffix

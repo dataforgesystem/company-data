@@ -6,13 +6,14 @@ from curl_cffi import requests
 import json
 import re
 from bs4 import BeautifulSoup
+from typing import Any, Optional, Dict
 
 logger = get_logger(__name__)
 
 
 class HTTPUrlScraper(UrlScraper):
 
-    def build_proxies(self, proxy: str):
+    def build_proxies(self, proxy: Optional[str]) -> Any:
         if not proxy:
             return None
         return {"http": f"http://{proxy}", "https": f"http://{proxy}"}
@@ -26,7 +27,7 @@ class HTTPUrlScraper(UrlScraper):
         js_code = "\n".join([script.string for script in scripts if script.string])
         return js_code
 
-    def _extract_cache_from_scripts(self, soup: BeautifulSoup) -> dict:
+    def _extract_cache_from_scripts(self, soup: BeautifulSoup) -> Dict:
         """
         Extract window.App.cache data from JSON assigned in script tags.
         """
@@ -66,7 +67,8 @@ class HTTPUrlScraper(UrlScraper):
         try:
             logger.info("Starting HTTP crawl: %s", url)
             headers = ScrapingUtils.prepare_search_query_headers()
-            proxies = self.build_proxies(config.proxy) if config else None
+            proxy: Optional[str] = config.proxy if config else None
+            proxies = self.build_proxies(proxy) if config else None
             response = requests.request(
                 "GET",
                 url,

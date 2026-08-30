@@ -15,13 +15,13 @@ from craft.searchers.search_by_name import CompanySearchByName
 from base.searcher import CompanySearcher
 from interfaces.iconfig import ICrawlerConfig, IQuery
 from interfaces.search_response import ISearchResponse
-from typing import List
+from typing import List, Optional
 
 logger = get_logger("Craft Search Orchestrator")
 
 
 class CraftCompanySearchingService:
-    def __init__(self, searcher: CompanySearcher | None = None):
+    def __init__(self, searcher: Optional[CompanySearcher] = None):
         self.searcher = searcher or CompanySearchByName(
             CompanyNameScraperChain(
                 (CompanySearchCrawler(), SeleniumbaseSearchCrawler())
@@ -30,10 +30,10 @@ class CraftCompanySearchingService:
         )
 
     def search_company(
-        self, query: IQuery, config: ICrawlerConfig | None = None
+        self, query: IQuery, config: Optional[ICrawlerConfig] = None
     ) -> List[ISearchResponse]:
         crawler_config = config or ICrawlerConfig()
-        results: list[str] = []
+        results: list[ISearchResponse] = []
 
         try:
             if query.company_name:
