@@ -1,10 +1,9 @@
 from .company_data import (
     CompanyData,
     CompanyEmployeeCount,
-    CompanyFinancials,
     CompanyFundingInfo,
     CompanyLocation,
-    CompanyOperatingMetrics,
+    CompanyOperatingMetric,
     CompanyStatus,
     CurrentCompanyStatus,
 )
@@ -12,10 +11,9 @@ from .company_data import (
 __all__ = [
     "CompanyData",
     "CompanyEmployeeCount",
-    "CompanyFinancials",
     "CompanyFundingInfo",
     "CompanyLocation",
-    "CompanyOperatingMetrics",
+    "CompanyOperatingMetric",
     "CompanyStatus",
     "CurrentCompanyStatus",
 ]

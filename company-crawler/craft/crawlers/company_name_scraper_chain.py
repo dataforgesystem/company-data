@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from base.scraper import CompanyNameScraper
 from interfaces.iconfig import ICrawlerConfig
 from logger import get_logger
+from typing import Optional
 
 logger = get_logger("Company name scraper chain")
 
@@ -16,7 +17,7 @@ class CompanyNameScraperChain(CompanyNameScraper):
             raise ValueError("CompanyNameScraperChain requires at least one scraper")
 
     def scrape(self, query: str, config: ICrawlerConfig) -> str:
-        last_error: Exception | None = None
+        last_error: Optional[Exception] = None
 
         for scraper in self.scrapers:
             try:

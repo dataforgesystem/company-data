@@ -11,5 +11,5 @@ dependencies = [
     "pydantic>=2.0",
 ]
 
-[tool.setuptools]
-packages = ["models"]
+[tool.setuptools.packages.find]
+where = ["."]
