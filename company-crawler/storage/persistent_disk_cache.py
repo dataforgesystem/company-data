@@ -1,23 +1,11 @@
-from typing import Any, Optional, Union, List
-
 from base.persistent_cache import PersistentCache
 import diskcache
-
-from interfaces.iconfig import ICrawlerConfig
-from interfaces.search_response import ISearchResponse
-from models.company_data import CompanyData
-from craft.utils.general_utils import GeneralUtils
-
 
 from typing import Any, Optional, Union, List, TypeVar, Type
 
 from base.persistent_cache import PersistentCache
 import diskcache
 
-from interfaces.iconfig import ICrawlerConfig
-from interfaces.search_response import ISearchResponse
-from models.company_data import CompanyData
-from craft.utils.general_utils import GeneralUtils
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)

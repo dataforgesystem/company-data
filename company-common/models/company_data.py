@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class CompanyFundingInfo(BaseModel):
@@ -173,3 +173,4 @@ class CompanyData(BaseModel):
     company_income_statements: Optional[List[IncomeStatement]] = Field(
         default=[], description="Income statements"
     )
+    last_scraped_at: datetime = Field(default=datetime.now(tz=timezone.utc))
