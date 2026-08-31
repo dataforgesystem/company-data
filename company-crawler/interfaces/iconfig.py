@@ -1,13 +1,21 @@
-from pydantic import BaseModel, Field, model_validator
-from typing import List, Optional
+from pydantic import BaseModel, Field, model_validator, Field, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional, Dict, Any
+from craft.utils.general_utils import GeneralUtils
 
 
 class ICrawlerConfig(BaseModel):
     request_timeout: float = Field(default=30.0, gt=0)
-    user_agent: str = Field(default="MyBot/1.0")
+    user_agent: str = Field(default_factory=GeneralUtils.get_random_user_agent)
     proxy: Optional[str] = None
     headless: bool = True
     uc: bool = True
+    company_cache_expiry_time_days: int = Field(default=90)
+    search_cache_expiry_time_days: int = Field(default=90)
+    force_rescrape: bool = Field(
+        default=False,
+        description="When set to true, will always bypass cache and scrape the data. Recommended to keep it False",
+    )
 
 
 class IQuery(BaseModel):

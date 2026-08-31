@@ -2,9 +2,9 @@ import re
 from typing import Optional
 from typing import Dict, Any
 from models.company_data import CompanyStatus
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dateutil.parser import parse
-
+from fake_headers import Headers
 
 class GeneralUtils:
     @staticmethod
@@ -49,3 +49,14 @@ class GeneralUtils:
         if not date_str:
             return None
         return parse(date_str)
+
+    @staticmethod
+    def generate_time_from_now(days: int):
+        current_date = datetime.now(tz=timezone.utc)
+        n_days_ahead_time = current_date + timedelta(days=days)
+        return n_days_ahead_time
+
+    @staticmethod
+    def get_random_user_agent() -> str:
+        """Generates a fresh random User-Agent string."""
+        return Headers(headers=False).generate().get("User-Agent", "")

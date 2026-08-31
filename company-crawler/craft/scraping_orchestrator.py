@@ -15,6 +15,10 @@ from base.parser import Parser
 from interfaces.iconfig import ICrawlerConfig
 from logger import get_logger
 from typing import Optional
+from storage.persistent_disk_cache import DiskCache
+from models.company_data import CompanyData
+from craft.utils.general_utils import GeneralUtils
+import os
 
 logger = get_logger("Craft Scraping Orchestrator")
 
@@ -29,6 +33,7 @@ class CraftCompanyPageScrapingService:
             (HTTPUrlScraper(), SeleniumBaseUrlScraper())
         )
         self.page_parser = page_parser
+        self._disk_cache = DiskCache(CompanyData, os.getcwd())
 
     def fetch_page(self, url: str, config: ICrawlerConfig) -> str:
         try:
@@ -47,18 +52,21 @@ class CraftCompanyPageScrapingService:
     def scrape_company_page(self, url: str, config: Optional[ICrawlerConfig] = None):
         crawler_config = config if config is not None else ICrawlerConfig()
         try:
+            if not crawler_config.force_rescrape:
+                cached_data = self._disk_cache.get(url)
+                if cached_data:
+                    return cached_data
+
             page_data = self.fetch_page(url, crawler_config)
-            print(page_data)
-            return self.parse_page(page_data)
+            parsed_page = self.page_parser.parse(page_data)
+            self._disk_cache.set(
+                url,
+                parsed_page,
+                GeneralUtils.generate_time_from_now(
+                    crawler_config.company_cache_expiry_time_days
+                ).timestamp(),
+            )
+            return parsed_page
         except Exception:
             logger.exception("Error while processing page: %s", url)
             raise
-
-
-if __name__ == "__main__":
-    parser = CraftParser()
-    scraping_service = CraftCompanyPageScrapingService(None, parser)
-    data = scraping_service.scrape_company_page(
-        "https://craft.co/amazon", ICrawlerConfig()
-    )
-    print(data)
