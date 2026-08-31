@@ -12,10 +12,13 @@ from craft.crawlers.http_company_search_crawler import CompanySearchCrawler
 from craft.crawlers.selenium_base_search_crawler import SeleniumbaseSearchCrawler
 from craft.parsers.search_result_parser import CraftSearchParser
 from craft.searchers.search_by_name import CompanySearchByName
+from craft.utils.general_utils import GeneralUtils
 from base.searcher import CompanySearcher
 from interfaces.iconfig import ICrawlerConfig, IQuery
 from interfaces.search_response import ISearchResponse
 from typing import List, Optional
+from storage.persistent_disk_cache import DiskCache
+import os
 
 logger = get_logger("Craft Search Orchestrator")
 
@@ -28,6 +31,9 @@ class CraftCompanySearchingService:
             ),
             CraftSearchParser(),
         )
+        self._disk_cache = DiskCache(
+            ISearchResponse, os.getcwd()
+        )  # intentionally kept away from user control
 
     def search_company(
         self, query: IQuery, config: Optional[ICrawlerConfig] = None
@@ -37,14 +43,22 @@ class CraftCompanySearchingService:
 
         try:
             if query.company_name:
+                if not crawler_config.force_rescrape:
+                    result = self._disk_cache.get(
+                        query.company_name,
+                    )
+                    if result:
+                        return result
+
                 result = self.searcher.search_by_name(
                     query.company_name, crawler_config
                 )
-                if result:
-                    results.extend(result)
-            if query.stock_ticket:
-                result = self.searcher.search_by_symbol(
-                    query.stock_ticket, crawler_config
+                self._disk_cache.set(
+                    query.company_name,
+                    result,
+                    GeneralUtils.generate_time_from_now(
+                        crawler_config.search_cache_expiry_time_days
+                    ).timestamp(),
                 )
                 if result:
                     results.extend(result)
