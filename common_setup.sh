@@ -65,9 +65,9 @@ COMMON_PATH="$MASTER_DIR/company-common"
 CRAWLER_PATH="$MASTER_DIR/company-crawler"
 
 if [ -d "$COMMON_PATH" ] && [ -d "$CRAWLER_PATH" ]; then
-    echo "📦 Installing shared packages in editable mode..."
-    pip install -e "$COMMON_PATH"
-    pip install -e "$CRAWLER_PATH"
+        echo "📦 Installing shared packages..."
+        pip install -e "$COMMON_PATH"
+        pip install "$CRAWLER_PATH"
     
     # Take user directly to their selected project
     cd "$PROJECT_PATH"

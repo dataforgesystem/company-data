@@ -1,0 +1,15 @@
+{
+    "include": [
+        "agent",
+        "company-crawler",
+        "company-common"
+    ],
+    "pythonVersion": "3.14",
+    "pythonPlatform": "All",
+    "typeCheckingMode": "basic",
+    "extraPaths": [
+        "./company-crawler",
+        "./company-common"
+    ],
+    "venvPath": "./agent"
+}

@@ -116,6 +116,7 @@ packages = [
     "storage",
     "tests",
 ]
+py-modules = ["logger"]
 
 # The project directory is named "company-crawler" (hyphen), so map the
 # importable root package name "company_crawler" onto the project root to make
