@@ -76,7 +76,7 @@ $CRAWLER_PATH = Join-Path $MASTER_DIR "company-crawler"
 if ((Test-Path $COMMON_PATH) -and (Test-Path $CRAWLER_PATH)) {
     Write-Host "📦 Installing shared packages..." -ForegroundColor Cyan
     pip install -e $COMMON_PATH
-    pip install $CRAWLER_PATH
+    pip install -e $CRAWLER_PATH
     
     Set-Location $PROJECT_PATH
     Write-Host "✅ Setup complete! You are now inside '$TARGET_PROJECT' with .venv active." -ForegroundColor Green

@@ -7,7 +7,9 @@
     "pythonVersion": "3.14",
     "pythonPlatform": "All",
     "typeCheckingMode": "basic",
+    "venv": ".venv",
     "extraPaths": [
+        "./company-crawler/build/lib",
         "./company-crawler",
         "./company-common"
     ],

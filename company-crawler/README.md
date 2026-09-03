@@ -83,7 +83,7 @@ data = scraping_service.scrape_company_page(
 
 ```python
 from company_crawler import CraftCompanySearchingService, CraftCompanyPageScrapingService
-from craft.parsers.beautiful_soup_parser import CraftParser
+from craft.parsers.company_page_parser import CraftParser
 
 # Instantiate services directly
 search_service = CraftCompanySearchingService()
