@@ -74,7 +74,7 @@ $COMMON_PATH = Join-Path $MASTER_DIR "company-common"
 $CRAWLER_PATH = Join-Path $MASTER_DIR "company-crawler"
 
 if ((Test-Path $COMMON_PATH) -and (Test-Path $CRAWLER_PATH)) {
-    Write-Host "📦 Installing shared packages in editable mode..." -ForegroundColor Cyan
+    Write-Host "📦 Installing shared packages..." -ForegroundColor Cyan
     pip install -e $COMMON_PATH
     pip install -e $CRAWLER_PATH
     

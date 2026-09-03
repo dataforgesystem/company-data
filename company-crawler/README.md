@@ -10,6 +10,7 @@ A comprehensive, extensible library for searching and scraping company data from
 - 📊 **Multiple Export Formats**: Export data to CSV, JSON, and Parquet
 - 🔌 **Extensible Architecture**: Add new data sources without modifying core code
 - ⛓️ **Failover Chains**: Automatic fallback between HTTP and Selenium-based scrapers
+- 💾 **Pluggable Storage**: Persist scraped data to MongoDB or PostgreSQL
 
 ## Installation
 
@@ -29,6 +30,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+pip install .
 ```
 
 ## Quick Start
@@ -81,7 +83,7 @@ data = scraping_service.scrape_company_page(
 
 ```python
 from company_crawler import CraftCompanySearchingService, CraftCompanyPageScrapingService
-from craft.parsers.beautiful_soup_parser import CraftParser
+from craft.parsers.company_page_parser import CraftParser
 
 # Instantiate services directly
 search_service = CraftCompanySearchingService()
@@ -188,6 +190,26 @@ from company_crawler import get_scraping_service
 service = get_scraping_service("craft")
 ```
 
+#### `get_storage(driver="mongodb", config=None, **config_kwargs)`
+
+Create a storage backend for persisting scraped company data.
+
+**Parameters:**
+- `driver` (str): Backend name - `"mongodb"` or `"postgresql"` (case-insensitive). Default: `"mongodb"`
+- `config` (IDatabaseConfig, optional): Pre-built database config. When omitted, one is created from the keyword arguments
+- `**config_kwargs`: Forwarded to `IDatabaseConfig` (e.g. `name`, `host`, `port`, `user`, `password`, plus driver-specific extra options)
+
+**Returns:** A `DataStorage` instance (`MongoDBStorage` or `PostgreSQLStorage`). The connection is not opened yet - call `.connect()` before `.store_data(...)`
+
+**Raises:** `ValueError` if driver is not available
+
+**Example:**
+```python
+from company_crawler import get_storage
+storage = get_storage("mongodb", name="companies")
+storage.connect()
+```
+
 ### Craft-Specific API
 
 #### `create_search_service(searcher=None)`
@@ -291,6 +313,62 @@ from craft.services.json_exporter import JSONExporter
 
 exporter = JSONExporter()
 exporter.export(data, "output.json")
+```
+
+## Data Storage
+
+Scraped `CompanyData` can be persisted to MongoDB or PostgreSQL. Both backends
+implement the same `DataStorage` interface (`connect()` / `store_data()`), so
+switching is a one-line change.
+
+### Using the factory (recommended)
+
+```python
+from company_crawler import get_storage
+
+# MongoDB: upserts one document per company domain
+mongo_storage = get_storage("mongodb", name="companies")
+
+# PostgreSQL: upserts one JSONB row per company domain
+postgres_storage = get_storage("postgresql", name="companies")
+
+storage = mongo_storage  # or postgres_storage
+storage.connect()
+storage.store_data(company_data)
+```
+
+Connection settings are forwarded to `IDatabaseConfig` (`DB_*` environment
+variables work too):
+
+```python
+storage = get_storage(
+    "postgresql",
+    name="companies",
+    host="db.internal",
+    port=5432,
+    user="crawler",
+    password="secret",
+    table="companies",  # extra option: custom table name (PostgreSQL)
+)
+```
+
+> **MongoDB `authSource`:** pymongo authenticates against the database named
+> in the connection (here `companies`). Users created by the official Docker
+> image (`MONGO_INITDB_ROOT_USERNAME`) live in the `admin` database, so
+> authenticate against it explicitly:
+>
+> ```python
+> storage = get_storage("mongodb", name="companies", authSource="admin")
+> ```
+
+### Direct class access
+
+```python
+from company_crawler import MongoDBStorage, PostgreSQLStorage, IDatabaseConfig
+
+config = IDatabaseConfig(driver="mongodb", name="companies")
+storage = MongoDBStorage(config)
+storage.connect()
 ```
 
 ## Configuration
