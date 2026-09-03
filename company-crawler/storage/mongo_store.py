@@ -21,7 +21,9 @@ class MongoDBStorage(DataStorage):
 
     def store_data(self, company_data: CompanyData) -> UpdateResult:
         filter_q = {"company_domain": company_data.company_domain}
-        set_q = {"$set": company_data.model_dump()}
+        # mode="json" keeps the payload BSON-encodable: nested enums (e.g.
+        # CompanyStatus) become their values and datetimes become ISO strings.
+        set_q = {"$set": company_data.model_dump(mode="json")}
         result = self.company_data_collection.update_one(
             filter=filter_q, update=set_q, upsert=True
         )

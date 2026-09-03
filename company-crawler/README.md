@@ -351,6 +351,15 @@ storage = get_storage(
 )
 ```
 
+> **MongoDB `authSource`:** pymongo authenticates against the database named
+> in the connection (here `companies`). Users created by the official Docker
+> image (`MONGO_INITDB_ROOT_USERNAME`) live in the `admin` database, so
+> authenticate against it explicitly:
+>
+> ```python
+> storage = get_storage("mongodb", name="companies", authSource="admin")
+> ```
+
 ### Direct class access
 
 ```python
