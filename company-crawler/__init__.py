@@ -8,6 +8,7 @@ This module provides unified access to company data services from various source
 Available Services:
   - Search: Find companies by name or stock ticker
   - Scraping: Scrape and parse company pages
+  - Storage: Persist company data to MongoDB or PostgreSQL
   - Exporting: Export data in various formats (CSV, JSON, Parquet)
 
 Quick Start:
@@ -19,7 +20,16 @@ Quick Start:
     
     # Or access services through source-specific imports
     from company_crawler.craft import CraftCompanySearchingService, CraftCompanyPageScrapingService
+
+    # Persist scraped data - pick MongoDB or PostgreSQL
+    from company_crawler import get_storage
+
+    storage = get_storage("mongodb", name="companies")  # or get_storage("postgresql", ...)
+    storage.connect()
+    storage.store_data(company_data)
 """
+
+from typing import Optional
 
 # Re-export craft services for convenient access
 from craft import (
@@ -27,14 +37,26 @@ from craft import (
     CraftCompanyPageScrapingService,
 )
 
+# Re-export storage backends for convenient access
+from storage.mongo_store import MongoDBStorage
+from storage.postgres_store import PostgreSQLStorage, PostgresUpdateResult
+from interfaces.iconfig import IDatabaseConfig
+
 __all__ = [
     # Craft services
     "CraftCompanySearchingService",
     "CraftCompanyPageScrapingService",
-    # Service registry
+    # Storage backends
+    "MongoDBStorage",
+    "PostgreSQLStorage",
+    "PostgresUpdateResult",
+    "IDatabaseConfig",
+    # Service registries
     "AVAILABLE_SOURCES",
+    "AVAILABLE_STORAGES",
     "get_search_service",
     "get_scraping_service",
+    "get_storage",
 ]
 
 # Registry of available data sources
@@ -43,6 +65,13 @@ AVAILABLE_SOURCES = {
         "search_service": CraftCompanySearchingService,
         "scraping_service": CraftCompanyPageScrapingService,
     }
+}
+
+# Registry of available storage backends. Keys double as the canonical
+# IDatabaseConfig.driver values ("mongodb" / "postgresql").
+AVAILABLE_STORAGES = {
+    "mongodb": MongoDBStorage,
+    "postgresql": PostgreSQLStorage,
 }
 
 
@@ -109,3 +138,50 @@ def get_scraping_service(source: str = "craft", **kwargs):
 
     service_class = AVAILABLE_SOURCES[source]["scraping_service"]
     return service_class(**kwargs)
+
+
+def get_storage(
+    driver: str = "mongodb",
+    config: Optional[IDatabaseConfig] = None,
+    **config_kwargs,
+):
+    """
+    Get a storage backend for persisting scraped company data.
+
+    Args:
+        driver: Storage backend name. Available drivers: mongodb,
+            postgresql (case-insensitive)
+        config: Optional pre-built IDatabaseConfig. When omitted, one is
+            created from **config_kwargs
+        **config_kwargs: Keyword arguments forwarded to IDatabaseConfig
+            (e.g. name, host, port, user, password, plus any driver-specific
+            extra options)
+
+    Returns:
+        A DataStorage instance (MongoDBStorage or PostgreSQLStorage) for the
+        requested backend. The connection is not opened yet - call
+        .connect() before .store_data(...)
+
+    Raises:
+        ValueError: If driver is not available
+
+    Example:
+        >>> from company_crawler import get_storage
+        >>> storage = get_storage("mongodb", name="companies")
+        >>> storage.connect()
+        >>> storage.store_data(company_data)
+    """
+    key = str(driver).lower()
+    if key not in AVAILABLE_STORAGES:
+        raise ValueError(
+            f"Unknown storage driver: {driver}. Available drivers: {sorted(AVAILABLE_STORAGES)}"
+        )
+
+    storage_class = AVAILABLE_STORAGES[key]
+    if config is None:
+        # "driver" is the backend selector parameter, so it can never arrive
+        # through **config_kwargs; the key doubles as the canonical driver name.
+        config_kwargs["driver"] = key
+        config = IDatabaseConfig(**config_kwargs)
+
+    return storage_class(config)

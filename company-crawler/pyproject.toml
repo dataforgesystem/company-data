@@ -45,6 +45,7 @@ dependencies = [
     "pluggy>=1.6.0",
     "price-parser>=0.5.1",
     "psutil>=7.2.2",
+    "psycopg[binary]>=3.2.3",
     "pyautogui>=0.9.54",
     "pycparser>=3.0",
     "pydantic>=2.13.5",
@@ -100,5 +101,24 @@ dependencies = [
 [tool.uv.sources]
 company-common = { path = "../company-common", editable = true }
 
-[tool.setuptools.packages.find]
-where = ["."]
+[tool.setuptools]
+packages = [
+    "company_crawler",
+    "base",
+    "craft",
+    "craft.crawlers",
+    "craft.parsers",
+    "craft.searchers",
+    "craft.services",
+    "craft.utils",
+    "global_utils",
+    "interfaces",
+    "storage",
+    "tests",
+]
+
+# The project directory is named "company-crawler" (hyphen), so map the
+# importable root package name "company_crawler" onto the project root to make
+# "from company_crawler import ..." work as documented in the README.
+[tool.setuptools.package-dir]
+company_crawler = "."
