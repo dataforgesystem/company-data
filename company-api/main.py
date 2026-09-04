@@ -1,24 +1,30 @@
 """
-company-api entrypoint.
+Company API entrypoint.
 
 Deliberately minimal right now - no DB dependency, no business routes yet.
-This exists so error-handling conventions have somewhere to attach and
-get tested before routes/DB integration land on top.
+
+The application factory keeps application construction in one place so
+production and tests use the same application configuration.
 """
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "company-common"))
 
 from fastapi import FastAPI
 
 from error_handlers import register_exception_handlers
 
-app = FastAPI(title="Company API", version="0.1.0")
-register_exception_handlers(app)
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Company API",
+        version="0.1.0",
+    )
+
+    register_exception_handlers(app)
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return app
 
 
-@app.get("/")
-async def health() -> dict:
-    return {"status": "ok"}
+app = create_app()
