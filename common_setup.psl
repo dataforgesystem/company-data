@@ -1,0 +1,85 @@
+# 1. Get the root company-data folder path
+$MASTER_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ([string]::IsNullOrEmpty($MASTER_DIR)) { $MASTER_DIR = Get-Location }
+
+# 2. Determine which project folder to target
+$TARGET_PROJECT = $args
+
+if ([string]::IsNullOrEmpty($TARGET_PROJECT)) {
+    Write-Host "📂 Available projects inside company-data:" -ForegroundColor Yellow
+    
+    $ExcludeList = @("company-common", "company-crawler", ".git", ".idea", ".vscode")
+    $Projects = Get-ChildItem -Path $MASTER_DIR -Directory | 
+                Where-Object { $_.Name -notin $ExcludeList } | 
+                Select-Object -ExpandProperty Name
+
+    if ($Projects.Count -eq 0) {
+        Write-Error "❌ No target project folders found inside company-data."
+        return
+    }
+
+    for ($i = 0; $i -lt $Projects.Count; $i++) {
+        Write-Host " [$i] $($Projects[$i])" -ForegroundColor Cyan
+    }
+    
+    $Selection = Read-Host "👉 Select a project number to set up"
+    if ($Selection -match '^\d+$' -and [int]$Selection -lt $Projects.Count) {
+        $TARGET_PROJECT = $Projects[[int]$Selection]
+    } else {
+        Write-Error "❌ Invalid selection."
+        return
+    }
+}
+
+$PROJECT_PATH = Join-Path $MASTER_DIR $TARGET_PROJECT
+
+if (-not (Test-Path $PROJECT_PATH)) {
+    Write-Error "❌ Error: Project folder '$TARGET_PROJECT' does not exist."
+    return
+}
+
+Write-Host "🚀 Setting up environment for: $TARGET_PROJECT" -ForegroundColor Green
+
+# 3. Clean up corrupted previous attempts
+if (Test-Path "$PROJECT_PATH\.venv") {
+    Write-Host "🧹 Removing existing or corrupted .venv folder..." -ForegroundColor Yellow
+    Remove-Item -Path "$PROJECT_PATH\.venv" -Recurse -Force
+}
+
+# 4. Create venv using fast bypass (avoids ensurepip deadlock)
+Write-Host "⚙️ Creating virtual environment (fast bypass)..." -ForegroundColor Cyan
+if (Get-Command python -ErrorAction SilentlyContinue) {
+    python -m venv --without-pip "$PROJECT_PATH\.venv"
+} else {
+    py -m venv --without-pip "$PROJECT_PATH\.venv"
+}
+
+# 5. Activate the environment
+Write-Host "🔌 Activating virtual environment..." -ForegroundColor Cyan
+$ActivateScript = Join-Path $PROJECT_PATH ".venv\Scripts\Activate.ps1"
+if (Test-Path $ActivateScript) {
+    & $ActivateScript
+} else {
+    Write-Error "❌ Activation script not found. Check if the venv was created successfully."
+    return
+}
+
+# 6. Safe fallback bootstrap for pip
+Write-Host "🔄 Bootstrapping and upgrading pip..." -ForegroundColor Cyan
+python -m ensurepip --default-pip | Out-Null
+python -m pip install --upgrade pip
+
+# 7. Local editable installations
+$COMMON_PATH = Join-Path $MASTER_DIR "company-common"
+$CRAWLER_PATH = Join-Path $MASTER_DIR "company-crawler"
+
+if ((Test-Path $COMMON_PATH) -and (Test-Path $CRAWLER_PATH)) {
+    Write-Host "📦 Installing shared packages..." -ForegroundColor Cyan
+    pip install -e $COMMON_PATH
+    pip install -e $CRAWLER_PATH
+    
+    Set-Location $PROJECT_PATH
+    Write-Host "✅ Setup complete! You are now inside '$TARGET_PROJECT' with .venv active." -ForegroundColor Green
+} else {
+    Write-Warning "❌ Error: Shared core packages missing from company-data/ folder."
+}
