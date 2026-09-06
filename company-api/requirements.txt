@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+httpx
+pytest
+pydantic
+-e ../company-common

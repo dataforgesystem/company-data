@@ -54,8 +54,8 @@ class SeleniumBaseUrlScraper(UrlScraper):
             json_response = driver.execute_script("return window.App.cache")
             return json.dumps(json_response)
 
-        except TypeError as ex:
-            logger.exception("TypeError at scrape: {ex}")
+        except TypeError:
+            logger.exception("TypeError at scrape: %s", url)
             raise
 
         except Exception:
