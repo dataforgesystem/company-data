@@ -28,9 +28,7 @@ class HTTPUrlScraper(UrlScraper):
         return js_code
 
     def _extract_cache_from_scripts(self, soup: BeautifulSoup) -> Dict:
-        """
-        Extract window.App.cache data from JSON assigned in script tags.
-        """
+        """Extract window.App.cache data from JSON assigned in script tags."""
         scripts = soup.find_all("script")
 
         for script in scripts:
@@ -89,15 +87,15 @@ class HTTPUrlScraper(UrlScraper):
             if not cache_data:
                 logger.warning(
                     "No window.App.cache data found in HTTP response for %s. "
-                    "This may be because the data is loaded dynamically via JavaScript. "
+                    "This may be because the data is loaded dynamically via JavaScript."
                     "Consider using SeleniumBaseUrlScraper instead.",
                     url,
                 )
                 raise ValueError(
                     "No window.App.cache data found in response. "
-                    "The target website may load data dynamically. Use SeleniumBaseUrlScraper for full JavaScript support."
+                    "The target website may load data dynamically. "
+                    "Use SeleniumBaseUrlScraper for full JavaScript support."
                 )
-
             logger.info("Successfully extracted cache data from %s", url)
             return json.dumps(cache_data)
 
