@@ -21,7 +21,7 @@ TARGET_PROJECT="$1"
 if [ -z "$TARGET_PROJECT" ]; then
     echo "📂 Available projects inside company-data:"
     # List directories excluding common, crawler, or hidden folders
-    select dir in $(find "$MASTER_DIR" -maxdepth 1 -type d ! -name ".*" ! -name "company-common" ! -name "company-crawler" ! -name "company-data" -exec basename {} \;); do
+    select dir in $(find "$MASTER_DIR" -maxdepth 1 -type d ! -name ".*" ! -name "company-data" -exec basename {} \;); do
         if [ -n "$dir" ]; then
             TARGET_PROJECT="$dir"
             break
@@ -60,18 +60,11 @@ echo "🔄 Bootstrapping and upgrading pip..."
 python -m ensurepip --default-pip >/dev/null 2>&1 || python -m pip install --upgrade pip >/dev/null 2>&1
 python -m pip install --upgrade pip
 
-# 8. Local editable installations
-COMMON_PATH="$MASTER_DIR/company-common"
-CRAWLER_PATH="$MASTER_DIR/company-crawler"
-
-if [ -d "$COMMON_PATH" ] && [ -d "$CRAWLER_PATH" ]; then
-        echo "📦 Installing shared packages..."
-        pip install -e "$COMMON_PATH"
-        pip install -e "$CRAWLER_PATH"
-    
+# 8. Shared crawler package from PyPI (provides the CompanyData model and the crawler)
+if pip install company-data-crawler; then
     # Take user directly to their selected project
     cd "$PROJECT_PATH"
     echo "✅ Setup complete! You are now inside '$TARGET_PROJECT' with .venv active."
 else
-    echo "❌ Error: Shared core packages missing from company-data/ folder."
+    echo "❌ Error: Failed to install company-data-crawler from PyPI."
 fi
