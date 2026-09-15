@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # --- Relational Operational Cache Store ---
   postgres:
     image: postgres:15-alpine
     container_name: company_postgres
