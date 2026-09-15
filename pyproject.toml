@@ -1,0 +1,25 @@
+[project]
+name = "company-data"
+version = "0.1.0"
+description = "AI Based Company Research Tool"
+readme = "README.md"
+authors = [
+    { name = "Sajid Shaikh", email = "shaikhsajid11112000@gmail.com" },
+    { name= "Shiva Silmawala", email = "shivasilmawala841@gmail.com" } 
+
+]
+requires-python = ">=3.12"
+dependencies = [
+    "company-data-crawler>=3.0.0",
+    "langgraph>=1.2.11",
+    "ollama>=0.6.2",
+    "psycopg-binary>=3.3.5",
+    "qdrant-client>=1.19.0",
+]
+
+[project.scripts]
+company-data = "company_data:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
