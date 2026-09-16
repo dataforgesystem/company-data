@@ -2,7 +2,7 @@ import uuid
 
 from company_data_crawler.models.company_data import CompanyData
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import PointStruct
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 from company_data.database.base import IVectorStore
 from company_data.utils.logger import CustomLogger
@@ -16,6 +16,18 @@ class QdrantStore(IVectorStore):
     def __init__(self, qdrant_url: str, collection_name: str = "companies") -> None:
         self.client = AsyncQdrantClient(url=qdrant_url)
         self.collection_name = collection_name
+
+    async def ensure_collection(self, vector_size: int) -> None:
+        """Creates the collection when missing (e.g. nomic-embed-text -> 768d)."""
+        if not await self.client.collection_exists(self.collection_name):
+            await self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+            )
+            logger.info(
+                f"Created Qdrant collection '{self.collection_name}' "
+                f"(dim={vector_size})."
+            )
 
     async def index_profile(
         self,

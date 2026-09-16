@@ -4,7 +4,19 @@ from company_data_crawler.models.company_data import CompanyData
 class LLMConfig:
     QUERY_INTENT_EXTRACTION_MODEL = "llama3.2"
     PROFILE_MERGE_MODEL = "llama3.2"
+    EMBEDDING_MODEL = "nomic-embed-text"
     OLLAMA_HOST = "http://127.0.0.1:11434"
+
+    @classmethod
+    def environment_config(
+        cls, model_name: str, host: str | None = None
+    ) -> "ILLMEnvironmentConfig":
+        """Build the provider-agnostic config object the LLM providers take."""
+        from company_data.llm.base import ILLMEnvironmentConfig
+
+        return ILLMEnvironmentConfig(
+            API_KEY=None, model_name=model_name, host=host or cls.OLLAMA_HOST
+        )
 
 
 class Capabilities:

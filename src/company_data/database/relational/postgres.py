@@ -1,4 +1,5 @@
 import psycopg
+from psycopg.types.json import Jsonb
 from company_data_crawler.models.company_data import CompanyData
 
 from company_data.database.base import IProfileStore, SourcedProfile
@@ -31,10 +32,10 @@ class PostgresStore(IProfileStore):
                 profile_data = EXCLUDED.profile_data,
                 updated_at = CURRENT_TIMESTAMP;
         """
-        # Bind a plain dict, not model_dump_json(): psycopg adapts dict -> JSONB
-        # natively, whereas a raw string would fail PostgreSQL's text -> jsonb cast.
-        # mode="json" converts datetimes/enums so JSONB serialization never chokes.
-        json_payload = profile.model_dump(mode="json")
+        # Jsonb wrapper: psycopg3 needs it to adapt a dict into a jsonb column
+        # (a bare dict fails with "cannot adapt type 'dict'"). mode="json"
+        # converts datetimes/enums so the payload is JSON-safe first.
+        json_payload = Jsonb(profile.model_dump(mode="json"))
 
         async with await psycopg.AsyncConnection.connect(self.pg_conn_str) as conn:
             async with conn.cursor() as cur:

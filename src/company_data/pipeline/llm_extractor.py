@@ -1,10 +1,10 @@
 from company_data.config.llm_configs import Capabilities, Prompts
-from company_data.llm.base import LLMProvider
+from company_data.llm.base import ILLMProvider
 from company_data.pipeline.interfaces.extractor import BaseExtractor, ExtractedData
 
 
 class LLMExtractor(BaseExtractor):
-    def __init__(self, llm: LLMProvider) -> None:
+    def __init__(self, llm: ILLMProvider) -> None:
         self.llm_client = llm
         self.system_prompt: str = Prompts.QUERY_INTENT_EXTRACTION_PROMPT.format(
             capabilities=Capabilities.render()

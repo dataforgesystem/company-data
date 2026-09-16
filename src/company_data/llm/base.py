@@ -33,6 +33,27 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def call_with_tools(
-        self, prompt: str, tools: list[BaseTool], system_instruction: str
+        self,
+        prompt: str,
+        tools: list[BaseTool],
+        system_instruction: str,
     ) -> Any:
+        pass
+
+
+# Alias used by the provider implementations (ollama.py, gemini_provider.py).
+ILLMProvider = LLMProvider
+
+
+class IEmbedder(ABC):
+    """Contract for text embedding providers (semantic search, RAG)."""
+
+    @abstractmethod
+    def embed(self, text: str) -> list[float]:
+        """Embed a single text into a fixed-size vector."""
+        pass
+
+    @abstractmethod
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Embed a batch of texts into fixed-size vectors."""
         pass
