@@ -3,13 +3,13 @@ from typing import Any
 
 from ollama import Client
 
-from company_data.llm.base import ILLMProvider, T
+from company_data.llm.base import ILLMEnvironmentConfig, ILLMProvider, T
 
 
 class OllamaProvider(ILLMProvider):
-    def __init__(self, model_name: str, host: str) -> None:
-        self.client = Client(host=host)
-        self.model_name = model_name
+    def __init__(self, config: ILLMEnvironmentConfig) -> None:
+        self.client = Client(host=config.host)
+        self.model_name = config.model_name
 
     def generate_text(self, prompt: str, system_instructions: str | None = None):
         messages: list[dict[str, str]] = [{"role": "user", "content": prompt}]

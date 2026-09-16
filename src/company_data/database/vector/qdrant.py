@@ -17,12 +17,20 @@ class QdrantStore(IVectorStore):
         self.client = AsyncQdrantClient(url=qdrant_url)
         self.collection_name = collection_name
 
-    async def index_profile(self, profile: CompanyData, embedding: list[float]) -> None:
-        """Pushes the generated vector directly into the Qdrant index."""
-        # uuid5 derives a stable, process-independent id from the company domain,
-        # so re-syncing the same company upserts its point instead of duplicating
-        # it (built-in hash() is randomized per interpreter run).
-        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, profile.company_domain))
+    async def index_profile(
+        self,
+        profile: CompanyData,
+        embedding: list[float],
+        source_name: str,
+    ) -> None:
+        """Pushes one source's vector and provenance into the Qdrant index."""
+        # uuid5 derives a stable, process-independent id from the company domain
+        # and crawler source, so re-syncing the same company+source upserts its
+        # point instead of duplicating it, while different sources stay separate
+        # (records are never conflated at rest).
+        point_id = str(
+            uuid.uuid5(uuid.NAMESPACE_DNS, f"{profile.company_domain}:{source_name}")
+        )
 
         await self.client.upsert(
             collection_name=self.collection_name,
@@ -33,11 +41,14 @@ class QdrantStore(IVectorStore):
                     payload={
                         "company_domain": profile.company_domain,
                         "company_name": profile.company_name,
+                        "source_name": source_name,
                     },
                 )
             ],
         )
-        logger.info(f"Indexed vector for {profile.company_name} in Qdrant.")
+        logger.info(
+            f"Indexed {source_name} vector for {profile.company_name} in Qdrant."
+        )
 
     async def close(self) -> None:
         """Releases the underlying async HTTP session."""
