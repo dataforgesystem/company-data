@@ -4,10 +4,9 @@ from datetime import datetime, timezone
 
 from company_data_crawler.models.company_data import CompanyData
 
-from company_data.config.llm_configs import LLMConfig, Prompts
+from company_data.config.llm_configs import Prompts
 from company_data.database.base import SourcedProfile
-from company_data.llm.gemini_provider import GeminiProvider
-from company_data.llm.ollama import ILLMEnvironmentConfig
+from company_data.llm.base import LLMProvider
 from company_data.pipeline.interfaces.merger import BaseMerger
 
 
@@ -20,13 +19,8 @@ class LLMProfileMerger(BaseMerger):
     the LLM cannot return records that fail validation.
     """
 
-    def __init__(self) -> None:
-        config = ILLMEnvironmentConfig(
-            API_KEY=None,
-            model_name=LLMConfig.PROFILE_MERGE_MODEL,
-            host=None,
-        )
-        self.llm_client = GeminiProvider(config)
+    def __init__(self, llm: LLMProvider) -> None:
+        self.llm_client = llm
         self.system_prompt: str = Prompts.PROFILE_MERGE_SYSTEM_PROMPT
 
     def merge_profiles(
