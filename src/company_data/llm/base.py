@@ -1,23 +1,19 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any, TypeVar, Optional
+from typing import Any, TypeVar
 
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 T = TypeVar("T", bound=BaseModel)
 
 
 class ILLMEnvironmentConfig(BaseModel):
-    API_KEY: Optional[str] = Field(..., description="The API key for the LLM")
-    model_name: Optional[str] = Field(
-        ..., description="The name of the LLM model to use"
-    )
-    host: Optional[str] = Field(
-        None, description="The host for the LLM (if applicable)"
-    )
+    API_KEY: str | None = Field(..., description="The API key for the LLM")
+    model_name: str | None = Field(..., description="The name of the LLM model to use")
+    host: str | None = Field(None, description="The host for the LLM (if applicable)")
 
 
-class ILLMProvider(ABC):
+class LLMProvider(ABC):
 
     def __init__(self, config: ILLMEnvironmentConfig):
         self.config = config
@@ -37,6 +33,6 @@ class ILLMProvider(ABC):
 
     @abstractmethod
     def call_with_tools(
-        self, prompt: str, tools: list[Callable], system_instruction: str
+        self, prompt: str, tools: list[BaseTool], system_instruction: str
     ) -> Any:
         pass
