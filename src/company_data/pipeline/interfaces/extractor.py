@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
 
+from company_data.llm.base import LLMProvider
+
 
 class ExtractedData(BaseModel):
     company_name: str = Field(
@@ -19,6 +21,10 @@ class ExtractedData(BaseModel):
 
 
 class BaseExtractor(ABC):
+    def __init__(self, llm: LLMProvider) -> None:
+        self.llm = llm
+        super().__init__()
+
     @abstractmethod
     def extract_intent(self, text_query: str) -> ExtractedData:
         """Extract out the intents of the text"""
