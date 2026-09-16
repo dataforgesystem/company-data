@@ -1,7 +1,7 @@
 import psycopg
 from company_data_crawler.models.company_data import CompanyData
 
-from company_data.interfaces.company_store import IProfileStore
+from company_data.database.base import IProfileStore
 from company_data.utils.logger import CustomLogger
 
 logger = CustomLogger().get_logger()

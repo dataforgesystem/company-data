@@ -14,8 +14,11 @@ class ILLMProvider(ABC):
 
     @abstractmethod
     def generate_structured_output(
-        self, prompt: str, response_schema: type[T], system_instructions: str
-    ):
+        self,
+        prompt: str,
+        response_schema: type[T],
+        system_instructions: str,
+    ) -> T:
         pass
 
     @abstractmethod

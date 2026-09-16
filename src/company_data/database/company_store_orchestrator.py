@@ -2,7 +2,7 @@ import asyncio
 
 from company_data_crawler.models.company_data import CompanyData
 
-from company_data.interfaces.company_store import (
+from company_data.database.base import (
     ICompanyStore,
     IProfileStore,
     IVectorStore,

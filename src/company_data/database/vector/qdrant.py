@@ -4,7 +4,7 @@ from company_data_crawler.models.company_data import CompanyData
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import PointStruct
 
-from company_data.interfaces.company_store import IVectorStore
+from company_data.database.base import IVectorStore
 from company_data.utils.logger import CustomLogger
 
 logger = CustomLogger().get_logger()
