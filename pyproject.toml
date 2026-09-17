@@ -11,10 +11,11 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "company-data-crawler>=3.0.0",
-    "google-genai>=2.23.0",
+    "langchain-google-genai>=4.4.0",
+    "langchain-ollama>=1.0.1",
     "langgraph>=1.2.11",
-    "ollama>=0.6.2",
     "psycopg-binary>=3.3.5",
+    "python-dotenv>=1.2.3",
     "qdrant-client>=1.19.0",
 ]
 
@@ -24,3 +25,10 @@ company-data = "company_data:main"
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+# `loads` is a deliberate dependency of the response cache; its beta notice is
+# suppressed in the module itself, but pytest resets warning filters per test.
+filterwarnings = [
+    "ignore:.*The function `loads` is in beta.*:Warning",
+]

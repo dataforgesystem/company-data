@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from company_data_crawler import CompanyData, CompanyDataCrawler, ICrawlerConfig
 from company_data_crawler.sources.registry import SourceRegistry
 
+from company_data.config.crawler_configs import CrawlerConfig
 from company_data.database.company_store_orchestrator import CompanyStoreOrchestrator
 from company_data.llm.base import IEmbedder
 from company_data.utils.logger import CustomLogger
@@ -49,11 +50,14 @@ class IngestionPipeline:
         embedder: IEmbedder,
         sources: Sequence[str] = ("craft", "owler"),
         crawler_config: ICrawlerConfig | None = None,
+        cache_dir: str | None = CrawlerConfig.CACHE_DIR,
     ) -> None:
         self.store = store
         self.embedder = embedder
         self.sources = tuple(sources)
-        self.crawler = CompanyDataCrawler(config=crawler_config or ICrawlerConfig())
+        self.crawler = CompanyDataCrawler(
+            config=crawler_config or ICrawlerConfig(), cache_dir=cache_dir
+        )
         self._register_available_sources()
 
     def _register_available_sources(self) -> None:

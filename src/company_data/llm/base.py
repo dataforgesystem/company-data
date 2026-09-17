@@ -1,26 +1,22 @@
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
 
-class ILLMEnvironmentConfig(BaseModel):
-    API_KEY: str | None = Field(..., description="The API key for the LLM")
-    model_name: str | None = Field(..., description="The name of the LLM model to use")
-    host: str | None = Field(None, description="The host for the LLM (if applicable)")
+class ILLMProvider(ABC):
+    """Vendor-agnostic chat contract backed by a LangChain chat model."""
 
-
-class LLMProvider(ABC):
-
-    def __init__(self, config: ILLMEnvironmentConfig):
-        self.config = config
+    def __init__(self, chat_model: BaseChatModel):
+        self.chat_model = chat_model
 
     @abstractmethod
     def generate_text(self, prompt: str, system_instructions: str | None = None):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def generate_structured_output(
@@ -29,7 +25,7 @@ class LLMProvider(ABC):
         response_schema: type[T],
         system_instructions: str,
     ) -> T:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def call_with_tools(
@@ -38,11 +34,7 @@ class LLMProvider(ABC):
         tools: list[BaseTool],
         system_instruction: str,
     ) -> Any:
-        pass
-
-
-# Alias used by the provider implementations (ollama.py, gemini_provider.py).
-ILLMProvider = LLMProvider
+        raise NotImplementedError
 
 
 class IEmbedder(ABC):
@@ -51,9 +43,9 @@ class IEmbedder(ABC):
     @abstractmethod
     def embed(self, text: str) -> list[float]:
         """Embed a single text into a fixed-size vector."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed a batch of texts into fixed-size vectors."""
-        pass
+        raise NotImplementedError

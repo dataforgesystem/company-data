@@ -7,6 +7,7 @@ from company_data.database.base import (
     IProfileStore,
     IVectorStore,
     SourcedProfile,
+    VectorHit,
 )
 from company_data.utils.logger import CustomLogger
 
@@ -34,6 +35,12 @@ class CompanyStoreOrchestrator(ICompanyStore):
     async def fetch_source_profiles(self, company_domain: str) -> list[SourcedProfile]:
         """Delegates lookup to the PostgreSQL profile store (per-source records)."""
         return await self.profile_store.fetch_source_profiles(company_domain)
+
+    async def search_companies(
+        self, embedding: list[float], top_k: int = 5
+    ) -> list[VectorHit]:
+        """Semantic company lookup delegated to the vector index."""
+        return await self.vector_store.search(embedding, top_k)
 
     async def store_and_sync_profile(
         self, profile: CompanyData, embedding: list[float], source_name: str

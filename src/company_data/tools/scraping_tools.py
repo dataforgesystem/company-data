@@ -2,6 +2,7 @@ from company_data_crawler import CompanyDataCrawler
 from company_data_crawler.interfaces.iconfig import ICrawlerConfig
 from langchain_core.tools import tool
 
+from company_data.config.crawler_configs import CrawlerConfig
 from company_data.tools.interfaces.tools_interface import SupportedSource
 
 
@@ -26,7 +27,7 @@ def get_company_data_by_name(name: str, source: SupportedSource):
     Raises:
         ValueError: If ``source`` is not registered.
     """
-    crawler = CompanyDataCrawler()
+    crawler = CompanyDataCrawler(cache_dir=CrawlerConfig.CACHE_DIR)
     config = ICrawlerConfig(proxy=None)
     return crawler.get_company_data_by_name(name, source.value, config=config)
 
@@ -54,6 +55,6 @@ def get_company_data_by_symbol(symbol: str, source: SupportedSource):
         ValueError: If ``source`` is not registered, or the ticker symbol
             is empty or cannot be resolved.
     """
-    crawler = CompanyDataCrawler()
+    crawler = CompanyDataCrawler(cache_dir=CrawlerConfig.CACHE_DIR)
     config = ICrawlerConfig(proxy=None)
     return crawler.get_company_data_by_symbol(symbol, source.value, config)

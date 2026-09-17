@@ -4,7 +4,7 @@ from company_data_crawler.models.company_data import CompanyData
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
-from company_data.database.base import IVectorStore
+from company_data.database.base import IVectorStore, VectorHit
 from company_data.utils.logger import CustomLogger
 
 logger = CustomLogger().get_logger()
@@ -61,6 +61,27 @@ class QdrantStore(IVectorStore):
         logger.info(
             f"Indexed {source_name} vector for {profile.company_name} in Qdrant."
         )
+
+    async def search(self, embedding: list[float], top_k: int = 5) -> list[VectorHit]:
+        """Returns the closest indexed company points (semantic lookup)."""
+        response = await self.client.query_points(
+            collection_name=self.collection_name,
+            query=embedding,
+            limit=top_k,
+            with_payload=True,
+        )
+        hits: list[VectorHit] = []
+        for point in response.points:
+            payload = point.payload or {}
+            hits.append(
+                VectorHit(
+                    company_domain=payload.get("company_domain", ""),
+                    company_name=payload.get("company_name", ""),
+                    source_name=payload.get("source_name", ""),
+                    score=float(point.score or 0.0),
+                )
+            )
+        return hits
 
     async def close(self) -> None:
         """Releases the underlying async HTTP session."""

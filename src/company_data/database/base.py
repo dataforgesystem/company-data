@@ -12,6 +12,16 @@ class SourcedProfile:
     profile: CompanyData
 
 
+@dataclass(frozen=True)
+class VectorHit:
+    """One semantic search hit from the vector index."""
+
+    company_domain: str
+    company_name: str
+    source_name: str
+    score: float
+
+
 class IProfileStore(ABC):
     """Contract for the relational system of record (PostgreSQL JSONB).
 
@@ -53,6 +63,12 @@ class IVectorStore(ABC):
         """
 
     @abstractmethod
+    async def search(
+        self, embedding: list[float], top_k: int = 5
+    ) -> list["VectorHit"]:
+        """Returns the closest indexed company points (semantic lookup)."""
+
+    @abstractmethod
     async def close(self) -> None:
         """Releases any connections or clients held by the store."""
 
@@ -68,6 +84,12 @@ class ICompanyStore(ABC):
     @abstractmethod
     async def fetch_source_profiles(self, company_domain: str) -> list[SourcedProfile]:
         """Returns every per-source record stored for the company."""
+
+    @abstractmethod
+    async def search_companies(
+        self, embedding: list[float], top_k: int = 5
+    ) -> list[VectorHit]:
+        """Semantic company lookup delegated to the vector index."""
 
     @abstractmethod
     async def store_and_sync_profile(

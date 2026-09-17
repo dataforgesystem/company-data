@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
 
-from company_data.llm.base import LLMProvider
+from company_data.llm.base import ILLMProvider
 
 
 class ExtractedData(BaseModel):
@@ -21,7 +21,7 @@ class ExtractedData(BaseModel):
 
 
 class BaseExtractor(ABC):
-    def __init__(self, llm: LLMProvider) -> None:
+    def __init__(self, llm: ILLMProvider) -> None:
         self.llm = llm
         super().__init__()
 
