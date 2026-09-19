@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from company_data_crawler.models.company_data import CompanyData
@@ -10,6 +11,13 @@ class SourcedProfile:
 
     source_name: str
     profile: CompanyData
+
+    def to_dict(self) -> dict:
+        """JSON-ready form for serializing agent state (see ``tester.py``)."""
+        return {
+            "source_name": self.source_name,
+            "profile": self.profile.model_dump(mode="json"),
+        }
 
 
 @dataclass(frozen=True)
@@ -64,9 +72,16 @@ class IVectorStore(ABC):
 
     @abstractmethod
     async def search(
-        self, embedding: list[float], top_k: int = 5
+        self,
+        embedding: list[float],
+        top_k: int = 5,
+        source_names: Sequence[str] | None = None,
     ) -> list["VectorHit"]:
-        """Returns the closest indexed company points (semantic lookup)."""
+        """Returns the closest indexed company points (semantic lookup).
+
+        ``source_names`` optionally restricts hits to the given crawler
+        sources; ``None`` searches every indexed source.
+        """
 
     @abstractmethod
     async def close(self) -> None:
@@ -87,9 +102,16 @@ class ICompanyStore(ABC):
 
     @abstractmethod
     async def search_companies(
-        self, embedding: list[float], top_k: int = 5
+        self,
+        embedding: list[float],
+        top_k: int = 5,
+        source_names: Sequence[str] | None = None,
     ) -> list[VectorHit]:
-        """Semantic company lookup delegated to the vector index."""
+        """Semantic company lookup delegated to the vector index.
+
+        ``source_names`` optionally restricts hits to the given crawler
+        sources; ``None`` searches every indexed source.
+        """
 
     @abstractmethod
     async def store_and_sync_profile(

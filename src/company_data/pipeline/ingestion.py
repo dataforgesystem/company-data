@@ -1,9 +1,10 @@
-"""Ingestion pipeline: crawl a company from every source, embed, store per source.
+"""Ingestion pipeline: crawl a company from the needed sources, embed, store.
 
 Per source (craft, owler, ...): search -> scrape -> embed -> store. Records
-are written as separate per-source rows/points (no merging at rest); the
-on-demand LLM merger reconciles them only when a consumer needs a unified
-profile.
+are written as separate per-source rows/points (no merging at rest); a merger
+reconciles them only when the active merge strategy needs more than one
+record (``union`` / ``llm``). Single-source strategies (``off`` /
+``preferred``) scrape the preferred source only.
 """
 
 import asyncio
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 from company_data_crawler import CompanyData, CompanyDataCrawler, ICrawlerConfig
 from company_data_crawler.sources.registry import SourceRegistry
 
-from company_data.config.crawler_configs import CrawlerConfig
+from company_data.config.crawler_configs import CrawlerConfig, MergeConfig
 from company_data.database.company_store_orchestrator import CompanyStoreOrchestrator
 from company_data.llm.base import IEmbedder
 from company_data.utils.logger import CustomLogger
@@ -38,27 +39,39 @@ class IngestionResult:
 
 
 class IngestionPipeline:
-    """Crawls one company through every configured source and stores it.
+    """Crawls one company through the needed sources and stores it.
 
     Each source's record is embedded from a compact text summary and written
     to both engines via the store orchestrator, keeping sources separate.
+
+    Source selection: ``sources=None`` (default) derives from
+    :class:`MergeConfig` - the preferred source only for ``off``/``preferred``,
+    every known source for ``union``/``llm``. Pass ``sources`` explicitly to
+    override (e.g. a backfill script that wants all sources regardless).
     """
 
     def __init__(
         self,
         store: CompanyStoreOrchestrator,
         embedder: IEmbedder,
-        sources: Sequence[str] = ("craft", "owler"),
+        sources: Sequence[str] | None = None,
         crawler_config: ICrawlerConfig | None = None,
         cache_dir: str | None = CrawlerConfig.CACHE_DIR,
     ) -> None:
         self.store = store
         self.embedder = embedder
-        self.sources = tuple(sources)
+        self.sources = tuple(sources) if sources is not None else self._default_sources()
         self.crawler = CompanyDataCrawler(
             config=crawler_config or ICrawlerConfig(), cache_dir=cache_dir
         )
         self._register_available_sources()
+
+    @staticmethod
+    def _default_sources() -> tuple[str, ...]:
+        """Sources the active merge strategy actually consumes."""
+        if MergeConfig.needs_all_sources():
+            return tuple(_SOURCE_MODULES)
+        return (MergeConfig.PREFERRED_SOURCE,)
 
     def _register_available_sources(self) -> None:
         """Import provider modules so their sources self-register; skip broken ones."""
@@ -71,7 +84,7 @@ class IngestionPipeline:
                 logger.warning(f"Source '{name}' unavailable, skipping: {exc!r}")
 
     async def ingest(self, company_name: str) -> list[IngestionResult]:
-        """Ingest ``company_name`` from every available source."""
+        """Ingest ``company_name`` from every source this pipeline covers."""
         results: list[IngestionResult] = []
         for source in self.sources:
             results.append(await self._ingest_from_source(company_name, source))

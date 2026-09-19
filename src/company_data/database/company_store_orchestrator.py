@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Sequence
 
 from company_data_crawler.models.company_data import CompanyData
 
@@ -37,10 +38,13 @@ class CompanyStoreOrchestrator(ICompanyStore):
         return await self.profile_store.fetch_source_profiles(company_domain)
 
     async def search_companies(
-        self, embedding: list[float], top_k: int = 5
+        self,
+        embedding: list[float],
+        top_k: int = 5,
+        source_names: Sequence[str] | None = None,
     ) -> list[VectorHit]:
         """Semantic company lookup delegated to the vector index."""
-        return await self.vector_store.search(embedding, top_k)
+        return await self.vector_store.search(embedding, top_k, source_names)
 
     async def store_and_sync_profile(
         self, profile: CompanyData, embedding: list[float], source_name: str
