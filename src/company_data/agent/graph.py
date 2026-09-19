@@ -1,5 +1,5 @@
 """Wires the company research agent graph (extract -> retrieve -> ingest on
-miss -> merge on demand -> synthesize) and exposes a runnable agent."""
+miss -> resolve per company -> synthesize) and exposes a runnable agent."""
 
 import asyncio
 
@@ -11,6 +11,7 @@ from company_data.agent.state import AgentState
 from company_data.cache.interfaces import ISemanticCache
 from company_data.cache.semantic_cache import SemanticQueryCache
 from company_data.config.cache_configs import CacheConfig
+from company_data.config.crawler_configs import MergeConfig
 from company_data.config.db_configs import DBConfig
 from company_data.config.llm_configs import LLMConfig
 from company_data.database.company_store_orchestrator import CompanyStoreOrchestrator
@@ -21,9 +22,9 @@ from company_data.llm.base import IEmbedder
 from company_data.llm.embedder import LangChainEmbedder
 from company_data.llm.llm_client import LLMProvider
 from company_data.llm.response_cache import configure_llm_cache
+from company_data.pipeline.deterministic_merger import build_merger
 from company_data.pipeline.ingestion import IngestionPipeline
 from company_data.pipeline.llm_extractor import LLMExtractor
-from company_data.pipeline.llm_merger import LLMProfileMerger
 from company_data.utils.logger import CustomLogger
 
 logger = CustomLogger().get_logger()
@@ -60,11 +61,15 @@ def build_default_components() -> AgentComponents:
     """Wires every component from project configs (the composition root).
 
     Each LLM consumer gets its own model, so a cheap local model can handle
-    cheap steps while a stronger hosted model handles reconciliation:
+    cheap steps while a stronger hosted model handles synthesis:
 
     - intent extraction  -> :attr:`LLMConfig.QUERY_INTENT_EXTRACTION_MODEL`
-    - profile merging    -> :attr:`LLMConfig.PROFILE_MERGE_MODEL`
     - answer synthesis   -> :attr:`LLMConfig.ANSWER_MODEL`
+
+    Profile resolution follows :class:`MergeConfig`: by default the preferred
+    source (craft) answers directly with no merging and no model call; the
+    ``llm`` strategy is opt-in via ``MERGE_STRATEGY=llm`` and only then is a
+    merge-model client constructed.
 
     Also installs the shared exact-match response cache, so repeated identical
     prompts (across runs, not just within one) never re-hit a provider.
@@ -75,14 +80,25 @@ def build_default_components() -> AgentComponents:
         PostgresStore(DBConfig.PG_CONNECTION_STRING),
         QdrantStore(DBConfig.QDRANT_URL, DBConfig.QDRANT_COLLECTION),
     )
+    strategy = MergeConfig.validated_strategy()
+    merger = build_merger(
+        strategy,
+        llm_factory=(
+            lambda: LLMProvider(LLMConfig.chat_model(LLMConfig.PROFILE_MERGE_MODEL))
+            if strategy == "llm"
+            else None
+        ),
+    )
+    logger.info(
+        f"Merge strategy: {strategy} "
+        f"(preferred source: {MergeConfig.PREFERRED_SOURCE})."
+    )
     return AgentComponents(
         llm=LLMProvider(LLMConfig.chat_model(LLMConfig.ANSWER_MODEL)),
         extractor=LLMExtractor(
             LLMProvider(LLMConfig.chat_model(LLMConfig.QUERY_INTENT_EXTRACTION_MODEL))
         ),
-        merger=LLMProfileMerger(
-            LLMProvider(LLMConfig.chat_model(LLMConfig.PROFILE_MERGE_MODEL))
-        ),
+        merger=merger,
         ingestion=IngestionPipeline(store, embedder),
         store=store,
         embedder=embedder,

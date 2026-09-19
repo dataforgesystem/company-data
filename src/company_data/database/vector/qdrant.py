@@ -1,8 +1,16 @@
 import uuid
+from typing import Sequence
 
 from company_data_crawler.models.company_data import CompanyData
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
+    PointStruct,
+    VectorParams,
+)
 
 from company_data.database.base import IVectorStore, VectorHit
 from company_data.utils.logger import CustomLogger
@@ -62,13 +70,33 @@ class QdrantStore(IVectorStore):
             f"Indexed {source_name} vector for {profile.company_name} in Qdrant."
         )
 
-    async def search(self, embedding: list[float], top_k: int = 5) -> list[VectorHit]:
-        """Returns the closest indexed company points (semantic lookup)."""
+    async def search(
+        self,
+        embedding: list[float],
+        top_k: int = 5,
+        source_names: Sequence[str] | None = None,
+    ) -> list[VectorHit]:
+        """Returns the closest indexed company points (semantic lookup).
+
+        ``source_names`` restricts hits to the given crawler sources, so a
+        single-source strategy never resolves a company from another source's
+        (possibly stale) point. ``None`` searches every source.
+        """
+        query_filter = None
+        if source_names:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="source_name", match=MatchAny(any=list(source_names))
+                    )
+                ]
+            )
         response = await self.client.query_points(
             collection_name=self.collection_name,
             query=embedding,
             limit=top_k,
             with_payload=True,
+            query_filter=query_filter,
         )
         hits: list[VectorHit] = []
         for point in response.points:

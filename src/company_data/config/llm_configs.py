@@ -36,6 +36,11 @@ class LLMConfig:
     QUERY_INTENT_EXTRACTION_MODEL = os.getenv(
         "LLM_INTENT_MODEL", "ollama:llama3.2"
     )
+    # Small local intent models drop the company on heading-style queries
+    # ("All Key Executives of Google" - the craft.co page-title format) while
+    # solving rephrased ones. The extractor re-asks with a corrective prompt
+    # when a pass returns no company names; 2 = one retry.
+    EXTRACTION_MAX_ATTEMPTS = int(os.getenv("LLM_EXTRACTION_ATTEMPTS", "2"))
     PROFILE_MERGE_MODEL = os.getenv("LLM_MERGE_MODEL", "gemini:gemini-3.6-flash")
     ANSWER_MODEL = os.getenv("LLM_ANSWER_MODEL", PROFILE_MERGE_MODEL)
     EMBEDDING_MODEL = os.getenv("LLM_EMBEDDING_MODEL", "ollama:nomic-embed-text")
@@ -239,9 +244,24 @@ class Prompts:
 The crawler can currently do the following:
 {capabilities}
 
-If the query does not match any of the capabilities above, return is_valid as False. If the intent is not valid, return is_valid as False.
+Rules:
+- Extract EVERY company EXPLICITLY NAMED in the query text into "company_names"
+  (in the order mentioned). Extract names even when the question is about
+  related companies: "Who are the competitors of Google?" mentions Google,
+  so it yields ["Google"]; "Compare Stripe and Adyen" yields ["Stripe", "Adyen"];
+  a single-company query yields one entry.
+- Do NOT leave "company_names" empty when the query names a company. Only
+  leave it empty when the query truly names no company at all.
+- "company_name" must equal the first entry of "company_names".
+- If the query mentions no company, leave both empty and set is_valid to False.
+- If the query does not match any of the capabilities above, return is_valid as False. If the intent is not valid, return is_valid as False.
 
-Return the output in JSON format with keys: company_name, intent, is_valid."""
+Return the output in JSON format with keys: company_names, company_name, intent, is_valid."""
+
+    QUERY_INTENT_RETRY_PROMPT = """Your previous extraction of this same query returned:
+{previous_output}
+
+Check the query text again: if it explicitly names any company, copy that name EXACTLY as written into "company_names" and set "company_name" to that same first entry, keeping intent and is_valid consistent. Only leave "company_names" empty when the query truly names no company at all. Return the JSON with the same keys."""
 
     PROFILE_MERGE_SYSTEM_PROMPT = """You are a data-reconciliation assistant for company profiles collected by the company_data_crawler from multiple sources (e.g. craft, owler).
 
@@ -270,3 +290,12 @@ The consumer needs this unified profile for: {focus_query}"""
 {profile_json}
 
 User question: {query}"""
+
+    PROFILE_MULTI_ANSWER_USER_PROMPT = """Company profiles (one JSON block per company, labelled):
+{profiles_json}
+
+User question: {query}
+
+Answer the question using ONLY the profiles above, addressing each company
+it mentions. If a profile lacks the needed information, say so for that
+company instead of guessing. Be concise and factual."""
