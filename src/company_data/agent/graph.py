@@ -2,6 +2,7 @@
 miss -> resolve per company -> synthesize) and exposes a runnable agent."""
 
 import asyncio
+from collections.abc import Awaitable, Callable
 
 from langgraph.graph import END, START, StateGraph
 
@@ -151,8 +152,18 @@ class CompanyResearchAgent:
             await vector_store.ensure_collection(DBConfig.VECTOR_SIZE)
         await self.query_cache.ensure_ready(DBConfig.VECTOR_SIZE)
 
-    async def run(self, query: str) -> AgentState:
-        """Answers one research query, reusing a cached answer when safe."""
+    async def run(
+        self,
+        query: str,
+        on_node: Callable[[str, dict], Awaitable[None]] | None = None,
+    ) -> AgentState:
+        """Answers one research query, reusing a cached answer when safe.
+
+        ``on_node`` optionally receives ``(node_name, node_update)`` after
+        every graph step completes — UIs use it for progress reporting. It is
+        awaited on the caller's event loop; the default ``None`` simply runs
+        the graph and returns the final state.
+        """
         cached = await self.query_cache.lookup(query)
         if cached is not None:
             return {
@@ -162,15 +173,25 @@ class CompanyResearchAgent:
                 "cache_hit": True,
             }
 
-        state = await self.graph.ainvoke({"query": query})
-        extracted = state.get("extracted")
+        if on_node is None:
+            state = await self.graph.ainvoke({"query": query})
+            return {**state, "cache_hit": False}
+
+        final_state: AgentState = {"query": query}
+        async for chunk in self.graph.astream({"query": query}, stream_mode="updates"):
+            for node_name, node_update in chunk.items():
+                if node_update:
+                    final_state.update(node_update)
+                await on_node(node_name, node_update or {})
+
+        extracted = final_state.get("extracted")
         await self.query_cache.store(
             query,
-            state.get("answer", ""),
-            state.get("company_domain") or "",
+            final_state.get("answer", ""),
+            final_state.get("company_domain") or "",
             extracted.intent if extracted is not None else "",
         )
-        return {**state, "cache_hit": False}
+        return {**final_state, "cache_hit": False}
 
     async def close(self) -> None:
         """Releases the stores held by the graph and the query cache."""

@@ -50,6 +50,9 @@ class IngestionPipeline:
     override (e.g. a backfill script that wants all sources regardless).
     """
 
+    #: Every crawler source the pipeline knows about.
+    KNOWN_SOURCES: tuple[str, ...] = tuple(_SOURCE_MODULES)
+
     def __init__(
         self,
         store: CompanyStoreOrchestrator,
@@ -60,7 +63,11 @@ class IngestionPipeline:
     ) -> None:
         self.store = store
         self.embedder = embedder
-        self.sources = tuple(sources) if sources is not None else self._default_sources()
+        self.sources = (
+            tuple(sources)
+            if sources is not None
+            else (MergeConfig.scrape_sources() or self.KNOWN_SOURCES)
+        )
         self.crawler = CompanyDataCrawler(
             config=crawler_config or ICrawlerConfig(), cache_dir=cache_dir
         )
@@ -68,10 +75,12 @@ class IngestionPipeline:
 
     @staticmethod
     def _default_sources() -> tuple[str, ...]:
-        """Sources the active merge strategy actually consumes."""
-        if MergeConfig.needs_all_sources():
-            return tuple(_SOURCE_MODULES)
-        return (MergeConfig.PREFERRED_SOURCE,)
+        """Sources the active merge strategy actually consumes.
+
+        Kept as a thin alias over :meth:`MergeConfig.scrape_sources` for
+        backward compatibility with tests.
+        """
+        return MergeConfig.scrape_sources() or IngestionPipeline.KNOWN_SOURCES
 
     def _register_available_sources(self) -> None:
         """Import provider modules so their sources self-register; skip broken ones."""
