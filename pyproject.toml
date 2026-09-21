@@ -26,6 +26,9 @@ company-data = "company_data:main"
 requires = ["uv_build>=0.12.3,<0.13.0"]
 build-backend = "uv_build"
 
+[project.optional-dependencies]
+ui = ["chainlit>=2.12.0"]
+
 [tool.pytest.ini_options]
 # `loads` is a deliberate dependency of the response cache; its beta notice is
 # suppressed in the module itself, but pytest resets warning filters per test.

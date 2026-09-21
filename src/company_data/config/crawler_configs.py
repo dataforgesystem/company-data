@@ -75,6 +75,18 @@ class MergeConfig:
             return None
         return (cls.PREFERRED_SOURCE,)
 
+    @classmethod
+    def scrape_sources(cls) -> tuple[str, ...] | None:
+        """Sources to scrape for the active strategy.
+
+        ``None`` means every source the pipeline knows (merging enabled);
+        single-source strategies scrape the preferred source only, so no
+        extra crawl/embed/store work is spent on records nothing reads.
+        """
+        if cls.needs_all_sources():
+            return None
+        return (cls.PREFERRED_SOURCE,)
+
 
 class CrawlerConfig:
     """``company_data_crawler`` settings, overridable via environment vars."""
