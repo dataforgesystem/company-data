@@ -33,6 +33,7 @@ from chainlit.context import init_ws_context  # noqa: E402
 from chainlit.session import WebsocketSession  # noqa: E402
 from company_data_crawler.models.company_data import CompanyData  # noqa: E402
 
+from company_data.agent.conversation import ConversationMemory  # noqa: E402
 from company_data.config.crawler_configs import MergeConfig  # noqa: E402
 from company_data.database.base import SourcedProfile  # noqa: E402
 from company_data.pipeline.ingestion import IngestionPipeline  # noqa: E402
@@ -74,7 +75,23 @@ class FakeAgent:
         if self.fail_on_setup:
             raise RuntimeError("qdrant unreachable")
 
-    async def run(self, query: str, on_node=None):
+    async def run(self, query: str, on_node=None, conversation=None):
+        # `conversation` arrives from the adapter's per-session memory; the fake
+        # records the context it received so tests can assert on it.
+        self.conversations = getattr(self, "conversations", [])
+        self.conversations.append(conversation)
+        # The real agent records the finished turn into the memory it was
+        # given; the fake mirrors that so memory-growth is testable here.
+        if conversation is not None:
+            conversation.record(
+                {
+                    "query": query,
+                    "answer": str(self.returned_state.get("answer", "")),
+                    "company_names": ["Stripe"],
+                    "company_domain": "stripe.com",
+                    "cache_hit": bool(self.returned_state.get("cache_hit")),
+                }
+            )
         self.queries.append(query)
         if on_node is not None:
             for node_name in self.progress_nodes:
@@ -358,7 +375,7 @@ async def test_progress_headers_are_removed_even_when_the_run_fails(monkeypatch)
     await ui_app.start_chat()
     harness.events.clear()
 
-    async def explode(query, on_node=None):
+    async def explode(query, on_node=None, conversation=None):
         await on_node("extract_intent", {})
         raise RuntimeError("crawler exploded")
 
@@ -403,3 +420,38 @@ def test_scrape_scope_advertised_matches_the_pipeline_defaults():
 def test_adapter_is_the_module_under_ui():
     """Sanity check that this test really exercised ``ui/app.py``."""
     assert Path(ui_app.__file__).resolve().parent == UI_DIR.resolve()
+
+
+# ------------------------------------------------------------ conversation
+
+
+async def test_followups_share_one_conversation_memory(monkeypatch):
+    """The adapter owns a per-session memory and passes it to every run."""
+    agent = FakeAgent()
+    harness = await boot_chat(monkeypatch, agent)
+    await ui_app.start_chat()
+    harness.events.clear()
+
+    await ui_app.handle_message(message("Tell me about Stripe"))
+    await ui_app.handle_message(message("and their employees?"))
+
+    assert len(agent.conversations) == 2
+    assert isinstance(agent.conversations[0], ConversationMemory)
+    # The same memory object across turns is what makes follow-ups resolve.
+    assert agent.conversations[0] is agent.conversations[1]
+    # Both turns were recorded into the one shared memory.
+    assert len(agent.conversations[1]) == 2
+
+
+async def test_clear_command_resets_the_conversation(monkeypatch):
+    agent = FakeAgent()
+    harness = await boot_chat(monkeypatch, agent)
+    await ui_app.start_chat()
+    await ui_app.handle_message(message("Tell me about Stripe"))
+    harness.events.clear()
+
+    await ui_app.handle_message(message("/clear"))
+
+    assert agent.queries == ["Tell me about Stripe"]  # /clear is not a query
+    assert len(agent.conversations[0]) == 0
+    assert "Conversation reset" in harness.answers()

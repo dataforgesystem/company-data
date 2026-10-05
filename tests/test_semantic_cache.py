@@ -52,10 +52,16 @@ class FakeQueryCacheStore(IQueryCacheStore):
         if self.fail:
             raise RuntimeError("store down")
 
-    async def search(self, embedding, top_k: int = 1) -> list[QueryCacheHit]:
+    async def search(
+        self, embedding, top_k: int = 1, scope: str = ""
+    ) -> list[QueryCacheHit]:
         self.search_calls += 1
+        self.last_scope = scope
         if self.fail:
             raise RuntimeError("store down")
+        # Exact-match scope filter, like the real Qdrant store: entries from
+        # another conversation's scope (including ones with no scope at all)
+        # are never candidates.
         scored = [
             (
                 cosine(embedding, vector),
@@ -66,9 +72,12 @@ class FakeQueryCacheStore(IQueryCacheStore):
                     intent=payload.get("intent", ""),
                     created_at=payload["created_at"],
                     score=0.0,
+                    company_names=tuple(payload.get("company_names") or ()),
+                    scope=str(payload.get("scope", "")),
                 ),
             )
             for vector, payload in self.points.values()
+            if str(payload.get("scope", "")) == scope
         ]
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return [
@@ -79,6 +88,8 @@ class FakeQueryCacheStore(IQueryCacheStore):
                 intent=hit.intent,
                 created_at=hit.created_at,
                 score=score,
+                company_names=hit.company_names,
+                scope=hit.scope,
             )
             for score, hit in scored[:top_k]
         ]
@@ -210,4 +221,67 @@ async def test_restoring_the_same_query_replaces_its_entry():
     hit = await cache.lookup("tesla competitors")
     assert hit is not None
     assert hit.answer == "new answer"
+
+
+# ------------------------------------------------------- conversation scoping
+
+
+async def test_followup_answer_is_scoped_to_its_companies():
+    """The same follow-up text in different conversations is different data.
+
+    "and their employees?" is byte-identical in a conversation about Tesla and
+    one about Adyen while expecting different answers, so similarity alone can
+    never be trusted: the scope must match exactly.
+    """
+    store = FakeQueryCacheStore()
+    cache = make_cache(store, threshold=0.5)
+    await cache.store(
+        "and their employees?",
+        "Tesla has about 140k employees",
+        company_names=["Tesla"],
+        scope="tesla",
+    )
+
+    hit = await cache.lookup("and their employees?", scope="tesla")
+    assert hit is not None
+    assert hit.answer == "Tesla has about 140k employees"
+    assert hit.company_names == ("Tesla",)
+    assert hit.scope == "tesla"
+
+    # A different company's conversation gets a miss, not Tesla's answer.
+    assert await cache.lookup("and their employees?", scope="adyen") is None
+
+
+async def test_scoped_and_unscoped_entries_coexist():
+    store = FakeQueryCacheStore()
+    cache = make_cache(store, threshold=0.5)
+    await cache.store("tesla competitors", "Rivian, Lucid")  # no conversation
+    await cache.store(
+        "tesla competitors", "same but scoped", company_names=["Tesla"], scope="tesla"
+    )
+
+    unscoped = await cache.lookup("tesla competitors")
+    scoped = await cache.lookup("tesla competitors", scope="tesla")
+    assert unscoped is not None and unscoped.answer == "Rivian, Lucid"
+    assert scoped is not None and scoped.answer == "same but scoped"
+    assert len(store.points) == 2
+
+
+async def test_scope_is_recorded_with_the_entry_for_memory():
+    store = FakeQueryCacheStore()
+    cache = make_cache(store, threshold=0.5)
+    await cache.store(
+        "q",
+        "a",
+        company_domain="stripe.com",
+        intent="funding",
+        company_names=["Stripe", "Adyen"],
+        scope="stripe|adyen",
+    )
+
+    hit = await cache.lookup("q", scope="stripe|adyen")
+    assert hit is not None
+    assert hit.company_names == ("Stripe", "Adyen")
+    assert hit.company_domain == "stripe.com"
+
     assert len(store.points) == 1

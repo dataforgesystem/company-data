@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from langgraph.graph import END, START, StateGraph
 
 from company_data.agent import edges, nodes
+from company_data.agent.conversation import ConversationMemory
 from company_data.agent.nodes import AgentComponents
 from company_data.agent.state import AgentState
 from company_data.cache.interfaces import ISemanticCache
@@ -130,18 +131,27 @@ class CompanyResearchAgent:
     already been answered (or a near-identical rewording) returns immediately
     without re-crawling or re-spending model quota. Set
     ``QUERY_CACHE_ENABLED=false`` to bypass it.
+
+    The agent also keeps conversation memory, so successive ``run`` calls on one
+    instance form a conversation and follow-ups ("and their employees?") resolve
+    against the earlier turns. Callers that own a chat (a UI) pass their own
+    :class:`ConversationMemory` per call instead, one per chat session.
     """
 
     def __init__(
         self,
         components: AgentComponents | None = None,
         query_cache: ISemanticCache | None = None,
+        conversation: ConversationMemory | None = None,
     ) -> None:
         self.components = components or build_default_components()
         self.query_cache = (
             query_cache
             if query_cache is not None
             else build_default_query_cache(self.components.embedder)
+        )
+        self.conversation = (
+            conversation if conversation is not None else ConversationMemory()
         )
         self.graph = build_graph(self.components)
 
@@ -156,6 +166,7 @@ class CompanyResearchAgent:
         self,
         query: str,
         on_node: Callable[[str, dict], Awaitable[None]] | None = None,
+        conversation: ConversationMemory | None = None,
     ) -> AgentState:
         """Answers one research query, reusing a cached answer when safe.
 
@@ -163,35 +174,57 @@ class CompanyResearchAgent:
         every graph step completes — UIs use it for progress reporting. It is
         awaited on the caller's event loop; the default ``None`` simply runs
         the graph and returns the final state.
+
+        ``conversation`` is the history this turn belongs to (defaulting to the
+        agent's own memory). It is passed into the graph so the extractor can
+        resolve a follow-up against it, and it doubles as the answer cache's
+        scope — because "and their employees?" means different things in a
+        conversation about Stripe and one about Adyen, however identical the
+        text.
         """
-        cached = await self.query_cache.lookup(query)
+        memory = conversation if conversation is not None else self.conversation
+        context = memory.render_for_prompt()
+        scope = memory.cache_scope()
+
+        cached = await self.query_cache.lookup(query, scope=scope)
         if cached is not None:
-            return {
+            result: AgentState = {
                 "query": query,
                 "answer": cached.answer,
+                # Lets a follow-up after a cache hit still name the company that
+                # was under discussion.
+                "company_names": list(cached.company_names),
                 "company_domain": cached.company_domain or None,
                 "cache_hit": True,
             }
+            memory.record(result)
+            return result
 
+        inputs: AgentState = {"query": query, "conversation_context": context}
         if on_node is None:
-            state = await self.graph.ainvoke({"query": query})
-            return {**state, "cache_hit": False}
+            final_state: AgentState = dict(await self.graph.ainvoke(inputs))
+        else:
+            final_state = dict(inputs)
+            async for chunk in self.graph.astream(inputs, stream_mode="updates"):
+                for node_name, node_update in chunk.items():
+                    if node_update:
+                        final_state.update(node_update)
+                    await on_node(node_name, node_update or {})
 
-        final_state: AgentState = {"query": query}
-        async for chunk in self.graph.astream({"query": query}, stream_mode="updates"):
-            for node_name, node_update in chunk.items():
-                if node_update:
-                    final_state.update(node_update)
-                await on_node(node_name, node_update or {})
-
-        extracted = final_state.get("extracted")
+        result = {**final_state, "cache_hit": False}
+        extracted = result.get("extracted")
+        # Stored regardless of whether a progress hook was supplied: caching is a
+        # property of the answer, not of how the caller observed the run.
         await self.query_cache.store(
             query,
-            final_state.get("answer", ""),
-            final_state.get("company_domain") or "",
+            result.get("answer", ""),
+            result.get("company_domain") or "",
             extracted.intent if extracted is not None else "",
+            company_names=list(result.get("company_names") or []),
+            scope=scope,
         )
-        return {**final_state, "cache_hit": False}
+        memory.record(result)
+        return result
 
     async def close(self) -> None:
         """Releases the stores held by the graph and the query cache."""

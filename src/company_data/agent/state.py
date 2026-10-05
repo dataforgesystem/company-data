@@ -23,6 +23,12 @@ class AgentState(TypedDict, total=False):
     """
 
     query: str
+    # Rendered history of the current chat, supplied by the caller's
+    # ConversationMemory. Empty on a first turn and for one-shot callers.
+    conversation_context: str
+    # The query rewritten standalone (companies spelled out) by the extractor;
+    # what retrieval and synthesis actually work from.
+    resolved_query: str
     extracted: ExtractedData | None
     company_names: list[str]
     company_domains: list[str | None]

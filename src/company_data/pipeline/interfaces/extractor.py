@@ -26,6 +26,12 @@ class ExtractedData(BaseModel):
     intent: str = Field(
         default="", min_length=3, description="What is the intent of the user query?"
     )
+    resolved_query: str = Field(
+        default="",
+        description="The user query rewritten as a standalone question with the "
+        "company names spelled out (follow-ups inherit them from the "
+        "conversation); empty when the query is already standalone",
+    )
     is_valid: bool = Field(
         default=False,
         description="Whether the extracted intent is valid",
@@ -55,5 +61,14 @@ class BaseExtractor(ABC):
         super().__init__()
 
     @abstractmethod
-    def extract_intent(self, text_query: str) -> ExtractedData:
-        """Extract out the intents of the text"""
+    def extract_intent(
+        self, text_query: str, conversation_context: str | None = None
+    ) -> ExtractedData:
+        """Extract out the intents of the text.
+
+        ``conversation_context`` is the rendered history of the current chat
+        (see :class:`~company_data.agent.conversation.ConversationMemory`). It
+        exists so a follow-up that names no company ("and their employees?")
+        can inherit the companies under discussion; ``None`` means the query
+        stands alone, which is the first turn and every one-shot caller.
+        """

@@ -22,6 +22,7 @@ from typing import Any
 
 import chainlit as cl
 
+from company_data.agent.conversation import ConversationMemory
 from company_data.agent.graph import CompanyResearchAgent
 from company_data.config.cache_configs import CacheConfig
 from company_data.config.crawler_configs import MergeConfig
@@ -39,6 +40,7 @@ def _flag(name: str, default: bool) -> bool:
 
 ASSISTANT_NAME = "Company Research"
 PROGRESS_STEPS_KEY = "progress_steps"
+CONVERSATION_KEY = "conversation"
 
 # Chainlit renders every step it has ever received as a permanent "Used
 # <step>" header in the conversation (``chat.messages.status.used``), and the
@@ -152,6 +154,7 @@ async def start_chat() -> None:
 
     cl.user_session.set("agent", agent)
     cl.user_session.set(PROGRESS_STEPS_KEY, [])
+    cl.user_session.set(CONVERSATION_KEY, ConversationMemory())
     await cl.Message(
         content=(
             "👋 Ask me about any company — funding, key executives, "
@@ -159,6 +162,8 @@ async def start_chat() -> None:
             f"**Data sources:** {describe_data_sources()}\n"
             f"**Models:** {describe_models()}\n"
             f"**{describe_cache()}**\n\n"
+            "Follow-ups work too: ask about a company, then say "
+            "*and their employees?* Type `/clear` to reset the conversation.\n\n"
             "Try: *Tell me about the funding history of Stripe.*"
         ),
         author=ASSISTANT_NAME,
@@ -191,11 +196,29 @@ async def handle_message(message: cl.Message) -> None:
     if not query:
         return
 
+    memory: ConversationMemory | None = cl.user_session.get(CONVERSATION_KEY)
+
+    # A conversation reset is handled by the adapter: it is a chat command, not
+    # a research question.
+    if query.casefold() in {"/clear", "/reset", "/new"}:
+        if memory is not None:
+            memory.clear()
+        await cl.Message(
+            content=(
+                "🧹 Conversation reset — follow-up pronouns now have nothing to "
+                "refer back to, so name the company in your next question."
+            ),
+            author=ASSISTANT_NAME,
+        ).send()
+        return
+
     cl.user_session.set(PROGRESS_STEPS_KEY, [])
     state: dict[str, Any] = {}
     failure: Exception | None = None
     try:
-        state = await agent.run(query, on_node=on_node_progress)
+        state = await agent.run(
+            query, on_node=on_node_progress, conversation=memory
+        )
     except Exception as error:  # reported below, after the trace is cleaned up
         failure = error
     finally:

@@ -38,6 +38,12 @@ CHAINLIT_APP_ROOT=ui chainlit run ui/app.py -w
 
 - Each chat session boots one `CompanyResearchAgent` (`agent.setup()` ensures
   the Qdrant collections exist) and releases its clients on chat end.
+- **Follow-ups work**: ask about a company, then say *"and their employees?"* —
+  the session keeps a bounded conversation memory (`CONVERSATION_HISTORY_TURNS`
+  turns) that the extractor uses to carry the companies over, and the answer
+  cache is scoped per conversation so a follow-up is never answered from
+  another company's chat. Type `/clear` to reset the memory mid-chat; a new
+  Chainlit chat starts fresh automatically.
 - Pipeline progress is streamed as collapsible Chainlit steps. Chainlit keeps
   every step it receives as a `Used <step>` header in the conversation, so the
   adapter **deletes them as soon as the run finishes** — otherwise they pile up

@@ -61,8 +61,12 @@ class ScriptedLLM(ILLMProvider):
 class FakeExtractor(BaseExtractor):
     def __init__(self, llm: ILLMProvider) -> None:
         super().__init__(llm)
+        self.contexts: list[str | None] = []
 
-    def extract_intent(self, text_query: str) -> ExtractedData:
+    def extract_intent(
+        self, text_query: str, conversation_context: str | None = None
+    ) -> ExtractedData:
+        self.contexts.append(conversation_context)
         return self.llm.generate_structured_output("", ExtractedData, "")
 
 
@@ -118,7 +122,7 @@ class DisabledCache(ISemanticCache):
     async def ensure_ready(self, vector_size: int) -> None:
         pass
 
-    async def lookup(self, query: str):
+    async def lookup(self, query: str, scope: str = ""):
         return None
 
     async def store(
@@ -127,6 +131,8 @@ class DisabledCache(ISemanticCache):
         answer: str,
         company_domain: str = "",
         intent: str = "",
+        company_names: list[str] | None = None,
+        scope: str = "",
     ) -> None:
         pass
 
