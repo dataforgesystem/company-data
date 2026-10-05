@@ -1,7 +1,14 @@
 import uuid
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from company_data.cache.interfaces import IQueryCacheStore, QueryCacheHit
 from company_data.utils.logger import CustomLogger
@@ -34,14 +41,24 @@ class QdrantQueryCacheStore(IQueryCacheStore):
             )
 
     async def search(
-        self, embedding: list[float], top_k: int = 1
+        self, embedding: list[float], top_k: int = 1, scope: str = ""
     ) -> list[QueryCacheHit]:
-        """Returns the closest cached queries, newest payload data included."""
+        """Returns the closest cached queries recorded in ``scope``.
+
+        The scope is an exact-match payload filter applied alongside the vector
+        search, so entries from a different conversation about a different
+        company are never candidates. Entries written before scopes existed
+        carry no ``scope`` field and therefore never match — they degrade to
+        misses rather than risking a wrong answer.
+        """
         response = await self.client.query_points(
             collection_name=self.collection_name,
             query=embedding,
             limit=top_k,
             with_payload=True,
+            query_filter=Filter(
+                must=[FieldCondition(key="scope", match=MatchValue(value=scope))]
+            ),
         )
         hits: list[QueryCacheHit] = []
         for point in response.points:
@@ -54,6 +71,10 @@ class QdrantQueryCacheStore(IQueryCacheStore):
                     intent=str(payload.get("intent", "")),
                     created_at=float(payload.get("created_at") or 0.0),
                     score=float(point.score or 0.0),
+                    company_names=tuple(
+                        str(name) for name in (payload.get("company_names") or [])
+                    ),
+                    scope=str(payload.get("scope", "")),
                 )
             )
         return hits

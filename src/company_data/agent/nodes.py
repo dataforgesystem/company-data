@@ -59,16 +59,30 @@ def _same_company_name(requested_name: str, hit_name: str) -> bool:
 
 def extract_intent_node(components: AgentComponents):
     async def extract_intent(state: AgentState) -> dict:
-        """Turns the raw query into a capability-validated intent."""
+        """Turns the raw query into a capability-validated intent.
+
+        The rendered conversation history rides along so a follow-up that names
+        no company ("and their employees?") inherits the companies under
+        discussion instead of being refused as out of scope. The extractor also
+        returns ``resolved_query`` — the question rewritten standalone — which
+        the rest of the graph then works from.
+        """
         extracted = await asyncio.to_thread(
-            components.extractor.extract_intent, state["query"]
+            components.extractor.extract_intent,
+            state["query"],
+            state.get("conversation_context") or None,
         )
         names = [
             name
             for name in (name.strip() for name in (extracted.company_names or []))
             if name
         ]
-        return {"extracted": extracted, "company_names": names}
+        return {
+            "extracted": extracted,
+            "company_names": names,
+            "resolved_query": (extracted.resolved_query or "").strip()
+            or state["query"],
+        }
 
     return extract_intent
 
@@ -83,10 +97,13 @@ def retrieve_company_node(components: AgentComponents):
         """
         names = _requested_names(state)
         allowed_sources = MergeConfig.read_sources()
+        # Embed the standalone question: a follow-up like "and their employees?"
+        # carries no company context of its own.
+        question = state.get("resolved_query") or state["query"]
 
         async def _resolve_one(name: str) -> str | None:
             query_embedding = await asyncio.to_thread(
-                components.embedder.embed, f"{name} {state['query']}"
+                components.embedder.embed, f"{name} {question}"
             )
             hits = await components.store.search_companies(
                 query_embedding,
@@ -283,6 +300,10 @@ def synthesize_answer_node(components: AgentComponents):
         if not profiles and state.get("merged_profile") is not None:
             profiles = [state.get("merged_profile")]
         names = _requested_names(state)
+        # Synthesize from the standalone question: the raw turn ("and their
+        # employees?") is ambiguous to the model even though the profiles are
+        # already resolved to the right companies.
+        question = state.get("resolved_query") or state["query"]
         answered = [
             (name, profile) for name, profile in zip(names, profiles) if profile
         ]
@@ -297,7 +318,7 @@ def synthesize_answer_node(components: AgentComponents):
         if len(answered) == 1:
             _name, profile = answered[0]
             prompt = Prompts.PROFILE_ANSWER_USER_PROMPT.format(
-                profile_json=profile.model_dump_json(), query=state["query"]
+                profile_json=profile.model_dump_json(), query=question
             )
         else:
             joined = "\n\n".join(
@@ -305,7 +326,7 @@ def synthesize_answer_node(components: AgentComponents):
                 for name, profile in answered
             )
             prompt = Prompts.PROFILE_MULTI_ANSWER_USER_PROMPT.format(
-                profiles_json=joined, query=state["query"]
+                profiles_json=joined, query=question
             )
         answer = await asyncio.to_thread(
             components.llm.generate_text,

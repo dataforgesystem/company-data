@@ -58,13 +58,18 @@ class SemanticQueryCache(ISemanticCache):
         except Exception as failure:
             logger.warning(f"Query cache unavailable, continuing without it: {failure!r}")
 
-    async def lookup(self, query: str) -> QueryCacheHit | None:
-        """Returns a cached answer when a close enough entry is trustworthy."""
+    async def lookup(self, query: str, scope: str = "") -> QueryCacheHit | None:
+        """Returns a cached answer when a close enough entry is trustworthy.
+
+        ``scope`` narrows the search to entries written in the same conversation
+        context, so a follow-up cannot be answered from another company's
+        conversation (see :meth:`ISemanticCache.lookup`).
+        """
         if not self.enabled or not query.strip():
             return None
         try:
             embedding = await asyncio.to_thread(self.embedder.embed, query)
-            hits = await self.cache_store.search(embedding, top_k=1)
+            hits = await self.cache_store.search(embedding, top_k=1, scope=scope)
         except Exception as failure:
             logger.warning(f"Query cache lookup failed, treating as a miss: {failure!r}")
             return None
@@ -84,7 +89,13 @@ class SemanticQueryCache(ISemanticCache):
         return hit
 
     async def store(
-        self, query: str, answer: str, company_domain: str = "", intent: str = ""
+        self,
+        query: str,
+        answer: str,
+        company_domain: str = "",
+        intent: str = "",
+        company_names: list[str] | None = None,
+        scope: str = "",
     ) -> None:
         """Caches one answer; never raises, so a failure cannot fail the run."""
         if not self.enabled or not answer or not query.strip():
@@ -92,10 +103,12 @@ class SemanticQueryCache(ISemanticCache):
         try:
             embedding = await asyncio.to_thread(self.embedder.embed, query)
             # Keyed by normalized query text, so re-answering the same question
-            # replaces its entry instead of accumulating duplicate points.
-            point_id = str(
-                uuid.uuid5(uuid.NAMESPACE_URL, " ".join(query.split()).lower())
-            )
+            # replaces its entry instead of accumulating duplicate points. The
+            # scope is part of the key: the same text in a different company's
+            # conversation is a different entry, and must not overwrite it.
+            normalized = " ".join(query.split()).lower()
+            key = f"{scope}::{normalized}" if scope else normalized
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_URL, key))
             await self.cache_store.upsert(
                 point_id,
                 embedding,
@@ -104,6 +117,8 @@ class SemanticQueryCache(ISemanticCache):
                     "answer": answer,
                     "company_domain": company_domain,
                     "intent": intent,
+                    "company_names": list(company_names or []),
+                    "scope": scope,
                     "created_at": time.time(),
                 },
             )

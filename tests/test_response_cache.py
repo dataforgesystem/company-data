@@ -54,7 +54,7 @@ def test_unknown_prompt_is_a_miss(cache):
 
 def test_a_different_model_configuration_is_a_miss(cache):
     """The same prompt against a different model must not reuse a response."""
-    cache.update("prompt", "gemini:gemini-3.6-flash", generations("answer"))
+    cache.update("prompt", "gemini:gemini-3.5-flash", generations("answer"))
 
     assert cache.lookup("prompt", "ollama:llama3.2") is None
 

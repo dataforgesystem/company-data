@@ -27,7 +27,7 @@ class LLMConfig:
 
     Note on the Gemini default: ``gemini-2.5-flash`` is no longer served to new
     API keys (the API answers ``404 NOT_FOUND`` and points at the current
-    generation), so the merge model is pinned to ``gemini-3.6-flash``. Set
+    generation), so the merge model is pinned to ``gemini-3.5-flash``. Set
     ``LLM_MERGE_MODEL`` to pin any other model, or use the auto-updating alias
     ``gemini:gemini-flash-latest`` to track the newest Flash release.
     """
@@ -41,7 +41,7 @@ class LLMConfig:
     # solving rephrased ones. The extractor re-asks with a corrective prompt
     # when a pass returns no company names; 2 = one retry.
     EXTRACTION_MAX_ATTEMPTS = int(os.getenv("LLM_EXTRACTION_ATTEMPTS", "2"))
-    PROFILE_MERGE_MODEL = os.getenv("LLM_MERGE_MODEL", "gemini:gemini-3.6-flash")
+    PROFILE_MERGE_MODEL = os.getenv("LLM_MERGE_MODEL", "gemini:gemini-3.5-flash")
     ANSWER_MODEL = os.getenv("LLM_ANSWER_MODEL", PROFILE_MERGE_MODEL)
     EMBEDDING_MODEL = os.getenv("LLM_EMBEDDING_MODEL", "ollama:nomic-embed-text")
 
@@ -244,6 +244,9 @@ class Prompts:
 The crawler can currently do the following:
 {capabilities}
 
+Earlier turns of this conversation (most recent last):
+{conversation_context}
+
 Rules:
 - Extract EVERY company EXPLICITLY NAMED in the query text into "company_names"
   (in the order mentioned). Extract names even when the question is about
@@ -252,16 +255,27 @@ Rules:
   a single-company query yields one entry.
 - Do NOT leave "company_names" empty when the query names a company. Only
   leave it empty when the query truly names no company at all.
+- Follow-up questions: if the query names NO company of its own but continues
+  the conversation above (e.g. "and their employees?", "what about the second
+  one?", "how much did they raise?", "any funding news?"), copy the companies
+  from the most recent earlier turn that has companies into "company_names",
+  in the same order.
 - "company_name" must equal the first entry of "company_names".
-- If the query mentions no company, leave both empty and set is_valid to False.
+- "resolved_query": rewrite the query as a standalone question with every
+  company name spelled out, so it can be understood without this
+  conversation — "and their employees?" about Stripe becomes "Who are the key
+  executives of Stripe?". If the query already stands alone, copy it
+  unchanged.
+- If the query mentions no company AND no earlier turn can supply one, leave
+  both name fields empty and set is_valid to False.
 - If the query does not match any of the capabilities above, return is_valid as False. If the intent is not valid, return is_valid as False.
 
-Return the output in JSON format with keys: company_names, company_name, intent, is_valid."""
+Return the output in JSON format with keys: company_names, company_name, resolved_query, intent, is_valid."""
 
     QUERY_INTENT_RETRY_PROMPT = """Your previous extraction of this same query returned:
 {previous_output}
 
-Check the query text again: if it explicitly names any company, copy that name EXACTLY as written into "company_names" and set "company_name" to that same first entry, keeping intent and is_valid consistent. Only leave "company_names" empty when the query truly names no company at all. Return the JSON with the same keys."""
+Check the query text and the earlier turns again: if either explicitly names a company, copy that name EXACTLY as written into "company_names" and set "company_name" to that same first entry, keeping resolved_query, intent and is_valid consistent. Only leave "company_names" empty when neither the query nor the earlier turns name a company. Return the JSON with the same keys."""
 
     PROFILE_MERGE_SYSTEM_PROMPT = """You are a data-reconciliation assistant for company profiles collected by the company_data_crawler from multiple sources (e.g. craft, owler).
 

@@ -7,7 +7,7 @@ failed output shown back for correction instead of letting the miss flow into
 the graph. These tests pin the retry contract. No LLM or database is needed.
 """
 
-from company_data.config.llm_configs import LLMConfig
+from company_data.config.llm_configs import LLMConfig, Prompts
 from company_data.pipeline.interfaces.extractor import ExtractedData
 from company_data.pipeline.llm_extractor import LLMExtractor
 
@@ -120,3 +120,65 @@ def test_retry_verifies_names_case_and_whitespace_insensitively():
 
     assert out.company_names == ["Eightfold  AI"]
     assert out.is_valid
+
+
+# ------------------------------------------------------- conversation context
+
+
+def test_first_turn_prompt_states_there_is_no_history():
+    llm = ScriptedLLM(_extraction("Google"))
+    extractor = LLMExtractor(llm)
+
+    extractor.extract_intent("All Key Executives of Google")
+
+    system_prompt = extractor.system_prompt_for(None)
+    assert "(none - this is the first message)" in system_prompt
+    # The history section must never be left dangling/empty.
+    assert "Earlier turns of this conversation" in system_prompt
+
+
+def test_followup_prompt_carries_the_rendered_history():
+    history = "1. User asked: Tell me about Stripe\n   Companies: Stripe"
+    llm = ScriptedLLM(_extraction("Stripe"))
+    extractor = LLMExtractor(llm)
+
+    extractor.extract_intent("and their employees?", conversation_context=history)
+
+    system_prompt = extractor.system_prompt_for(history)
+    assert history in system_prompt
+    assert "(none - this is the first message)" not in system_prompt
+    # The retry prompt must also look at the conversation, not just the query.
+    assert "earlier turns" in Prompts.QUERY_INTENT_RETRY_PROMPT
+
+
+def test_retry_may_carry_a_company_in_from_the_conversation():
+    """A follow-up retry recovers the company from the history, not hallucinated.
+
+    The query itself names no company, so the query-only guard would have
+    rejected the recovered name; the history is a legitimate source.
+    """
+    llm = ScriptedLLM(
+        _extraction(valid=False, intent="employees of the company"),
+        _extraction("Stripe", intent="employees of the company"),
+    )
+    history = "1. User asked: Tell me about Stripe\n   Companies: Stripe"
+    out = LLMExtractor(llm).extract_intent(
+        "and their employees?", conversation_context=history
+    )
+
+    assert out.company_names == ["Stripe"]
+    assert out.is_valid
+
+
+def test_retry_still_rejects_names_absent_from_both_query_and_history():
+    llm = ScriptedLLM(
+        _extraction(valid=False, intent="employees of the company"),
+        _extraction("Google"),  # invented: not in the query nor the history
+    )
+    history = "1. User asked: Tell me about Stripe\n   Companies: Stripe"
+    out = LLMExtractor(llm).extract_intent(
+        "and their employees?", conversation_context=history
+    )
+
+    assert out.company_names == []
+    assert not out.is_valid
